@@ -1,6 +1,6 @@
 "use strict";
 window.ATV_ASSESSMENT=(()=>{
-  const labels={general:"Đánh giá ATTT định kỳ",technical:"Đánh giá kỹ thuật định kỳ"};
+  const labels={general:"Đánh giá ATTT định kỳ",onboarding:"Đánh giá nhân viên mới",technical:"Đánh giá kỹ thuật định kỳ"};
   const safe=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let user=null,app=null,epoch=0,sdkPromise=null,fn=null;
   let state;
