@@ -200,7 +200,9 @@ service cloud.firestore {
       }
     }
     match /assessmentBanks/{course} {
-      allow get: if admin() || course == 'onboarding' && registered() && !onboardingDone(request.auth.uid);
+      // Shared practice banks intentionally include answers for registered members.
+      // Writes remain admin-only; assessment snapshots and completion locks are unchanged.
+      allow get: if registered() && course in ['general','onboarding','technical'];
       allow create, update: if admin() && course in ['general','onboarding','technical'] && validBank(request.resource.data);
       allow list, delete: if false;
     }
