@@ -17,7 +17,7 @@ Website đào tạo ATTT tiếng Việt, triển khai trên GitHub Pages. Fireba
 
 4. Authentication → Sign-in method: Google đã bật; Authorized domains có `hongluuatv.github.io`. Firebase Web App config nằm trong firebase-config.js; không đưa khóa service account hay thông tin admin vào repo.
 5. GitHub Settings → Pages: deploy branch main, root. Mở https://hongluuatv.github.io/atv-security/ và đăng nhập Google bằng `honglm@arrow-tech.vn`. Rules xác thực email và Google provider; profile mặc định tự cấp Admin, gắn UID. Không cần bootstrap bằng CLI.
-6. Quản lý hệ thống → Kỳ đánh giá: chọn General/Technical, nhấn Nạp đề mẫu DEMO cho khóa đang chọn (chỉ dùng thử). Tạo kỳ, đặt ngày mở/đóng, số câu, ngưỡng đạt, thời lượng, số lượt, lưu nháp, công bố. Chọn giờ mở hiện tại hoặc trước đó nếu muốn thi ngay. Đề mẫu công khai có 24 câu mỗi khóa.
+6. Quản lý hệ thống → Kỳ đánh giá: nhập file JSON ngân hàng ba khóa theo hướng dẫn v0.6.4. Tạo kỳ, đặt ngày mở/đóng, số câu, ngưỡng đạt, thời lượng, số lượt, lưu nháp, công bố. Chọn giờ mở hiện tại hoặc trước đó nếu muốn thi ngay. Đề mẫu công khai có 24 câu mỗi khóa.
 
 ## Quyền, dữ liệu và giới hạn
 
@@ -27,7 +27,7 @@ Website đào tạo ATTT tiếng Việt, triển khai trên GitHub Pages. Fireba
 - Thời gian bắt đầu và nộp bài được ghi bằng serverTimestamp; Rules kiểm tra đồng hồ máy chủ, thời hạn và số lượt đã nộp. Đồng hồ máy người dùng phải tương đối đúng (sai lệch trên 5 phút có thể làm từ chối lưu). Lượt chưa nộp không tính vào giới hạn; reload mở lại cùng đề trong thời hạn nhưng lựa chọn chưa nộp chỉ giữ trong phiên trang.
 - Nhật ký quản trị được ghi bởi ứng dụng, không phải audit log bất biến đầy đủ mọi thao tác qua SDK; không dùng làm bằng chứng duy nhất.
 - Kho dữ liệu: portalUsers, portalSettings, portalAudit, assessmentBanks, assessmentPeriodBanks, assessmentPeriods (results), assessmentSessions (active), assessmentResults (attempts). Bank theo kỳ được chốt khi publish. Tài khoản admin có thể quản lý dữ liệu qua Firebase Console với IAM tương ứng.
-- Muốn dùng ngân hàng riêng, admin có thể nhập document `assessmentBanks/general` hoặc `assessmentBanks/technical` trong Firestore Console theo schema ví dụ tại examples/ (version, questions gồm prompt, options, correctIndex đếm từ 0). Nút giao diện hiện chỉ nạp DEMO; không nhập đề mật. Chọn tối thiểu bằng số câu kỳ thi.
+- Muốn dùng ngân hàng riêng, admin có thể nhập document `assessmentBanks/general` hoặc `assessmentBanks/technical` trong Firestore Console theo schema ví dụ tại examples/ (version, questions gồm prompt, options, correctIndex đếm từ 0). Giao diện hỗ trợ nhập file JSON ba khóa; không nhập đề mật. Chọn tối thiểu bằng số câu kỳ thi.
 - Mã nguồn functions/ còn lưu trong repo như phương án cũ, không được frontend gọi và đã bỏ khỏi firebase.json. Nếu Functions từng được deploy, không tự xóa tài nguyên; quản trị viên cần rà soát và vô hiệu hóa backend cũ để tránh đường dẫn bỏ qua Rules qua Admin SDK. Không chạy các lệnh deploy Functions trước đây.
 - GitHub Pages là hosting tĩnh công khai, login không bảo vệ HTML/JS. Không commit tài liệu Drive riêng, hồ sơ nhân sự, ngân hàng đáp án chính thức, dữ liệu khách hàng. Giới hạn Spark theo mức dùng; theo dõi quota.
 - Cần nghiệm thu bằng ít nhất hai tài khoản: đăng nhập admin, thêm/khóa nhân viên, tạo/công bố kỳ DEMO, nộp bài và thi lại, kiểm tra Firestore và truy cập chéo bị từ chối, hết hạn và giới hạn lượt. Rules chưa kiểm thử trên emulator/project thực tế trong phiên cập nhật này.
@@ -39,3 +39,6 @@ Nguồn: https://firebase.google.com/docs/firestore/security/rules-conditions ; 
 Tại Quản lý hệ thống → Kỳ đánh giá → Ngân hàng câu hỏi từ Excel / JSON, chọn JSON dạng `{schemaVersion:1,banks:{general:{version,questions},onboarding:{version,questions},technical:{version,questions}}}`. Xem số câu, xác nhận nhập; ứng dụng ghi ba ngân hàng trong một batch Firestore. Chỉ admin có quyền ghi. Không đưa JSON chứa đáp án lên GitHub. Các câu có metadata id, topic, explanation, source, origin, reference được giữ khi nhập. Đề có topic rút đều giữa các nhóm theo số câu; khuyến nghị General 20, Onboarding 15, Technical 20, 80% đạt. Đề DEMO cũ không đổi. Kỳ đã công bố vẫn dùng snapshot cũ.
 
 **Cần Publish firestore.rules bản mới** để hỗ trợ Onboarding trước khi nhập. Sau đó tạo kỳ mới và công bố. Dữ liệu chỉ được nhập khi admin thực hiện trên portal; GitHub không tự seed Firebase. Các đáp án có thể đọc được bởi người tham gia kỳ đang mở vì phiên bản Spark chấm ở client; không dùng ngân hàng cần giữ bí mật nghiêm ngặt trong kiến trúc này.
+
+## v0.6.4
+Đã bỏ nút nạp DEMO; nhập ngân hàng JSON trước khi lưu kỳ mới. Không thay thế ngân hàng trong các kỳ đã công bố. Nếu ngân hàng hiện tại có version DEMO hoặc thiếu số câu, giao diện yêu cầu nhập JSON. 
