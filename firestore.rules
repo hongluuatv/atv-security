@@ -228,6 +228,31 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /assessmentResults/{uid} { allow get: if own(uid) || admin(); allow write, list: if false; }
+    // Current learning version; preserve older records and bump this version on material revisions.
+    function validReading(uid,version,d) {
+      return version == 'atv-study-2026-11-v1' && own(uid)
+        && d.keys().hasAll(['uid','email','items','lastItem','updatedAt'])
+        && d.keys().hasOnly(['uid','email','items','lastItem','updatedAt'])
+        && d.uid == uid && d.email == email() && d.updatedAt == request.time
+        && d.items is map && d.lastItem is string
+        && d.lastItem in ['rules','general:0','general:1','general:2','general:3','general:4','general:5','onboard:0','onboard:1','onboard:2','onboard:3','onboard:4','technical:0','technical:1','technical:2','technical:3','technical:4','technical:5','technical:6','technical:7']
+        && d.items.keys().hasOnly(['rules','general:0','general:1','general:2','general:3','general:4','general:5','onboard:0','onboard:1','onboard:2','onboard:3','onboard:4','technical:0','technical:1','technical:2','technical:3','technical:4','technical:5','technical:6','technical:7'])
+        && d.items.keys().hasAll([d.lastItem])
+        && d.items[d.lastItem] == request.time;
+    }
+    match /learningVersions/{version}/readings/{uid} {
+      allow get: if own(uid) || admin();
+      allow list: if admin() && request.query.limit <= 51;
+      allow create: if validReading(uid,version,request.resource.data)
+        && request.resource.data.items.size() == 1;
+      allow update: if validReading(uid,version,request.resource.data)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && !(request.resource.data.lastItem in resource.data.items)
+        && request.resource.data.items.diff(resource.data.items).affectedKeys().hasOnly([request.resource.data.lastItem])
+        && request.resource.data.items.size() == resource.data.items.size() + 1;
+      allow delete: if false;
+    }
     match /portalAudit/{id} {
       allow create: if admin() && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','target','at'])
         && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == email()
