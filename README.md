@@ -6,13 +6,13 @@ Website đào tạo ATTT tiếng Việt, triển khai trên GitHub Pages. Fireba
 
 1. Mở https://console.firebase.google.com/project/atv-security/firestore và tạo Cloud Firestore database mặc định, Production mode; chọn vị trí dữ liệu đã được ATV phê duyệt. Nếu database đã có, giữ nguyên.
 2. Tại Firestore Database → Rules, sao chép toàn bộ nội dung `firestore.rules` từ repo, rà soát và nhấn Publish. Không dùng test mode. Nếu có ứng dụng khác dùng chung project, hợp nhất rules hiện có trước khi publish.
-3. Tại Firestore Database → Indexes → Composite → Add index: collection ID `assessmentPeriods`, query scope Collection, `status` Ascending và `closeAtMs` Ascending. Chờ trạng thái Enabled. Có thể triển khai rules/indexes bằng CLI thay thế:
+3. Từ v0.6.5, danh sách kỳ đánh giá sử dụng index mặc định của Firestore; không cần tạo composite index. Có thể triển khai Rules bằng CLI:
 
    ```bash
    git clone https://github.com/hongluuatv/atv-security.git
    cd atv-security
    npx firebase-tools login
-   npx firebase-tools deploy --only firestore:rules,firestore:indexes --project atv-security
+   npx firebase-tools deploy --only firestore:rules --project atv-security
    ```
 
 4. Authentication → Sign-in method: Google đã bật; Authorized domains có `hongluuatv.github.io`. Firebase Web App config nằm trong firebase-config.js; không đưa khóa service account hay thông tin admin vào repo.
@@ -42,3 +42,6 @@ Tại Quản lý hệ thống → Kỳ đánh giá → Ngân hàng câu hỏi t�
 
 ## v0.6.4
 Đã bỏ nút nạp DEMO; nhập ngân hàng JSON trước khi lưu kỳ mới. Không thay thế ngân hàng trong các kỳ đã công bố. Nếu ngân hàng hiện tại có version DEMO hoặc thiếu số câu, giao diện yêu cầu nhập JSON. 
+
+## v0.6.6
+Tách nhóm ĐÁNH GIÁ thành ATTT định kỳ, Nhân viên mới và Kỹ thuật (Tech). Mỗi trang chỉ hiển thị kỳ và lịch sử của khóa tương ứng; giữ trạng thái làm bài riêng trong phiên trang. Lọc dữ liệu theo khóa ở client sau truy vấn single-field có phân trang, không cần composite index; với dữ liệu lịch sử lớn có thể phát sinh nhiều lượt đọc Firestore. Giữ nguyên Security Rules, ngân hàng đề và dữ liệu cũ.
