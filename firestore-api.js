@@ -49,6 +49,7 @@ window.ATV_FIRESTORE=(()=>{
           if(settings?.mode==="whitelist")fail("Email chưa được cấp phép.","permission-denied");
           p={email,uid,name,role:"employee",enabled:true,createdAtMs:now(),firstLoginAtMs:now()};stage="tạo hồ sơ nhân viên";tx.set(userRef,p);
         }else{
+          if(p.deletedAt)fail("Tài khoản đã bị xóa khỏi Portal. Liên hệ quản trị viên.","permission-denied");
           if(p.enabled!==true)fail("Tài khoản đã bị khóa.","permission-denied");
           if(!p.uid){p={...p,uid,name,firstLoginAtMs:now()};stage="gắn UID vào hồ sơ đã cấp phép";tx.set(userRef,p);}
         }
@@ -179,8 +180,10 @@ window.ATV_FIRESTORE=(()=>{
       const qs=[orderBy(field,field==="createdAtMs"?"desc":"asc")];
       if(cursor){const d=await getDocFromServer(doc(c,cursor));must(d.exists(),"Trang không tồn tại.");qs.push(startAfter(d));}qs.push(limit(n+1));const docs=(await getDocsFromServer(query(c,...qs))).docs;const rows=docs.slice(0,n);return {rows,nextCursor:docs.length>n?rows[n-1].id:null};
     }
-    async function listUsers(d){const [p,q]=await Promise.all([get(policyRef),paged(col("portalUsers"),"email",d.cursor)]);return {mode:p?.mode==="whitelist"?"whitelist":"domain",users:q.rows.map(s=>{const v=s.data();return {...v,registered:!!v.uid};}),nextCursor:q.nextCursor};}
-    async function saveUser(d){const e=String(d.email||"").trim().toLowerCase();must(validEmail(e)&&e!==ADMIN&&e!==email&&["admin","employee"].includes(d.role)&&typeof d.enabled==="boolean","Email hoặc quyền không hợp lệ; không thể sửa admin mặc định hoặc chính mình.");const r=ref("portalUsers",e);await runTransaction(db,async tx=>{const old=(await tx.get(r)).data();tx.set(r,old?{...old,role:d.role,enabled:d.enabled,updatedAtMs:now()}:{email:e,role:d.role,enabled:d.enabled,createdAtMs:now(),updatedAtMs:now()});audit(tx,"user.save",e);});return {ok:true};}
+    async function listUsers(d){const [p,q]=await Promise.all([get(policyRef),paged(col("portalUsers"),"email",d.cursor)]);return {mode:p?.mode==="whitelist"?"whitelist":"domain",users:q.rows.map(s=>{const v=s.data();return {...v,deleted:!!v.deletedAt,deletedAtMs:v.deletedAt?.toMillis?.()||null,registered:!!v.uid};}),nextCursor:q.nextCursor};}
+    async function saveUser(d){const e=String(d.email||"").trim().toLowerCase();must(validEmail(e)&&e!==ADMIN&&e!==email&&["admin","employee"].includes(d.role)&&typeof d.enabled==="boolean","Email hoặc quyền không hợp lệ; không thể sửa admin mặc định hoặc chính mình.");const r=ref("portalUsers",e);await runTransaction(db,async tx=>{const old=(await tx.get(r)).data();if(old?.deletedAt)fail("Tài khoản đã xóa. Hãy khôi phục trước khi sửa.");tx.set(r,old?{...old,role:d.role,enabled:d.enabled,updatedAtMs:now()}:{email:e,role:d.role,enabled:d.enabled,createdAtMs:now(),updatedAtMs:now()});audit(tx,"user.save",e);});return {ok:true};}
+    async function deleteUser(d){const e=String(d.email||"").trim().toLowerCase();must(validEmail(e)&&e!==ADMIN&&e!==email&&d.confirmed===true,"Không thể xóa tài khoản này.");const r=ref("portalUsers",e);await runTransaction(db,async tx=>{const old=(await tx.get(r)).data();must(old,"Không tìm thấy tài khoản.");if(old.deletedAt)return;tx.set(r,{...old,enabled:false,deletedAt:stamp(),deletedBy:email,updatedAtMs:now()});audit(tx,"user.delete",e);});return {ok:true};}
+    async function restoreUser(d){const e=String(d.email||"").trim().toLowerCase();must(validEmail(e)&&e!==ADMIN&&e!==email&&d.confirmed===true,"Không thể khôi phục tài khoản này.");const r=ref("portalUsers",e);await runTransaction(db,async tx=>{const old=(await tx.get(r)).data();must(old?.deletedAt,"Tài khoản chưa bị xóa.");const {deletedAt,deletedBy,...kept}=old;tx.set(r,{...kept,enabled:false,updatedAtMs:now()});audit(tx,"user.restore",e);});return {ok:true};}
     async function setMode(d){must(["domain","whitelist"].includes(d.mode),"Chế độ không hợp lệ.");const tx=writeBatch(db);tx.set(policyRef,{mode:d.mode,updatedAtMs:now(),updatedBy:email});audit(tx,"access.mode",d.mode);await tx.commit();return {ok:true};}
     async function listAdminPeriods(d){const [q,g,o,t]=await Promise.all([paged(col("assessmentPeriods"),"createdAtMs",d.cursor),get(bank("general")),get(bank("onboarding")),get(bank("technical"))]);const info=b=>({version:b?.version||null,count:b?.questions?.length||0});return {periods:q.rows.map(s=>({id:s.id,...s.data()})),nextCursor:q.nextCursor,banks:{general:info(g),onboarding:info(o),technical:info(t)}};}
     async function savePeriod(d){
@@ -251,7 +254,7 @@ window.ATV_FIRESTORE=(()=>{
       const rows=[],matched=new Set(),byEmail=new Map();
       for(const r of reports.values())if(r.email&&!byEmail.has(r.email.toLowerCase()))byEmail.set(r.email.toLowerCase(),r);
       for(const u of roster){const r=u.uid?reports.get(u.uid):byEmail.get(String(u.email).toLowerCase());if(r)matched.add(r.uid);
-        rows.push({...r,email:u.email,name:u.name||r?.name||"",role:u.role,enabled:u.enabled,registered:!!u.uid,roster:true,outcome:r?.passedCount>0?"passed":r?"failed":"not-started"});}
+        rows.push({...r,email:u.email,name:u.name||r?.name||"",role:u.role,enabled:u.enabled,deleted:!!u.deletedAt,registered:!!u.uid,roster:true,outcome:r?.passedCount>0?"passed":r?"failed":"not-started"});}
       for(const [uid,r] of reports)if(!matched.has(uid))rows.push({...r,email:r.email||uid,name:r.name||"",role:"unknown",enabled:null,registered:true,roster:false,outcome:r.passedCount>0?"passed":"failed"});
       rows.sort((a,b)=>a.email.localeCompare(b.email));return {rows,asOf:now()};
     }
@@ -271,7 +274,7 @@ window.ATV_FIRESTORE=(()=>{
     async function readingReport(){
       const roster=(await allPages(col("portalUsers"),"email")).map(s=>({email:s.id,...s.data()}));
       const docs=await allPages(col("learningVersions",readingVersion,"readings"),"email"),byUid=new Map(docs.map(s=>[s.id,s.data()]));
-      return {version:readingVersion,asOf:now(),rows:roster.map(u=>({email:u.email,name:u.name||"",role:u.role,enabled:u.enabled===true,registered:!!u.uid,items:readingItems(byUid.get(u.uid))}))};
+      return {version:readingVersion,asOf:now(),rows:roster.map(u=>({email:u.email,name:u.name||"",role:u.role,enabled:u.enabled===true,deleted:!!u.deletedAt,registered:!!u.uid,items:readingItems(byUid.get(u.uid))}))};
     }
     async function practiceBank(d){
       must(["general","onboarding","technical"].includes(d.course),"Khóa ôn tập không hợp lệ.");
@@ -289,7 +292,7 @@ window.ATV_FIRESTORE=(()=>{
       const tx=writeBatch(db);for(const [k,b] of validated)tx.set(bank(k),b);audit(tx,"bank.import","general,onboarding,technical");await tx.commit();
       return {banks:Object.fromEntries(validated.map(([k,b])=>[k,{version:b.version,count:b.questions.length}]))};
     }
-    const handlers={getPortalProfile:profile,getReadings,confirmReading,adminReadingReport:readingReport,getPracticeBank:practiceBank,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminReportPeriods:reportPeriods,adminAssessmentReport:assessmentReport,adminSaveBank:saveBank,adminImportBanks:importBanks};
+    const handlers={getPortalProfile:profile,getReadings,confirmReading,adminReadingReport:readingReport,getPracticeBank:practiceBank,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminDeleteUser:deleteUser,adminRestoreUser:restoreUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminReportPeriods:reportPeriods,adminAssessmentReport:assessmentReport,adminSaveBank:saveBank,adminImportBanks:importBanks};
     return {call:async(name,data={})=>{if(!handlers[name])fail("Chức năng không hợp lệ.");return handlers[name](data);}};
   }
   return {create};
