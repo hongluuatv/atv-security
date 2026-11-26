@@ -255,6 +255,13 @@ window.ATV_FIRESTORE=(()=>{
       for(const [uid,r] of reports)if(!matched.has(uid))rows.push({...r,email:r.email||uid,name:r.name||"",role:"unknown",enabled:null,registered:true,roster:false,outcome:r.passedCount>0?"passed":"failed"});
       rows.sort((a,b)=>a.email.localeCompare(b.email));return {rows,asOf:now()};
     }
+    async function practiceBank(d){
+      must(["general","onboarding","technical"].includes(d.course),"Khóa ôn tập không hợp lệ.");
+      let raw;try{raw=await get(bank(d.course));}catch(err){if(err?.code==="permission-denied")fail("Không có quyền đọc ngân hàng ôn tập. Admin cần Publish Firestore Rules v0.6.15.","permission-denied");throw err;}
+      if(!raw)fail("Ngân hàng khóa này chưa được nhập. Vui lòng liên hệ Admin.");
+      const b=versioned(raw);
+      return {version:b.version,questions:b.questions.map(({prompt,options,correctIndex,topic,explanation})=>({prompt,options,correctIndex,topic:topic||"",explanation:explanation||""}))};
+    }
     async function saveBank(d){must(["general","onboarding","technical"].includes(d.course),"Khóa không hợp lệ.");const b=versioned(d.bank);const tx=writeBatch(db);tx.set(bank(d.course),b);audit(tx,"bank.save",d.course);await tx.commit();return {version:b.version,count:b.questions.length};}
     async function importBanks(d){
       const bundle=d.bundle,keys=["general","onboarding","technical"];
@@ -264,7 +271,7 @@ window.ATV_FIRESTORE=(()=>{
       const tx=writeBatch(db);for(const [k,b] of validated)tx.set(bank(k),b);audit(tx,"bank.import","general,onboarding,technical");await tx.commit();
       return {banks:Object.fromEntries(validated.map(([k,b])=>[k,{version:b.version,count:b.questions.length}]))};
     }
-    const handlers={getPortalProfile:profile,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminReportPeriods:reportPeriods,adminAssessmentReport:assessmentReport,adminSaveBank:saveBank,adminImportBanks:importBanks};
+    const handlers={getPortalProfile:profile,getPracticeBank:practiceBank,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminReportPeriods:reportPeriods,adminAssessmentReport:assessmentReport,adminSaveBank:saveBank,adminImportBanks:importBanks};
     return {call:async(name,data={})=>{if(!handlers[name])fail("Chức năng không hợp lệ.");return handlers[name](data);}};
   }
   return {create};
