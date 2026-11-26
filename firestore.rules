@@ -1,11 +1,180 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // All exam data is served via authenticated Cloud Functions.
-    // Server Admin SDK bypasses these rules. Never allow client writes to results.
-    match /assessmentBanks/{path=**} { allow read, write: if false; }
-    match /assessmentSessions/{path=**} { allow read, write: if false; }
-    match /assessmentResults/{path=**} { allow read, write: if false; }
+    function company() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email is string
+        && request.auth.token.email.lower().matches('^[^/@]+@arrow-tech[.]vn$');
+    }
+    function email() { return request.auth.token.email.lower(); }
+    function reserved() { return 'honglm@arrow-tech.vn'; }
+    function userPath(e) { return /databases/$(database)/documents/portalUsers/$(e); }
+    function policyPath() { return /databases/$(database)/documents/portalSettings/access; }
+    function registered() {
+      return company() && exists(userPath(email()))
+        && get(userPath(email())).data.get('uid','') == request.auth.uid
+        && get(userPath(email())).data.enabled == true;
+    }
+    function admin() { return registered() && get(userPath(email())).data.role == 'admin'; }
+    function own(uid) { return registered() && request.auth.uid == uid; }
+    function userShape(e,d) {
+      return e.matches('^[^/@]+@arrow-tech[.]vn$') && e.size() <= 254
+        && d.keys().hasOnly(['email','role','enabled','uid','name','createdAtMs','updatedAtMs','firstLoginAtMs'])
+        && d.email == e && d.role in ['admin','employee'] && d.enabled is bool
+        && (!('uid' in d) || (d.uid is string && d.uid.size() <= 128))
+        && (!('name' in d) || (d.name is string && d.name.size() <= 120));
+    }
+    function selfCreate(e,d) {
+      return company() && e == email() && d.uid == request.auth.uid && d.enabled == true
+        && (e == reserved() && d.role == 'admin'
+            || e != reserved() && d.role == 'employee'
+                && (!exists(policyPath()) || get(policyPath()).data.mode == 'domain'));
+    }
+    function selfBind(e,d) {
+      return company() && e == email() && d.uid == request.auth.uid && d.enabled == true
+        && (resource.data.get('uid','') == '' || resource.data.uid == request.auth.uid)
+        && d.diff(resource.data).affectedKeys().hasOnly(['uid','name','firstLoginAtMs','role','enabled'])
+        && (e == reserved() && d.role == 'admin'
+            || e != reserved() && resource.data.enabled == true && d.role == resource.data.role
+               && d.diff(resource.data).affectedKeys().hasOnly(['uid','name','firstLoginAtMs']));
+    }
+    match /portalUsers/{e} {
+      allow get: if company() && (e == email() || admin());
+      allow list: if admin() && request.query.limit <= 51;
+      allow create: if userShape(e,request.resource.data) && (selfCreate(e,request.resource.data)
+        || admin() && e != reserved() && e != email() && !('uid' in request.resource.data));
+      allow update: if userShape(e,request.resource.data) && (selfBind(e,request.resource.data)
+        || admin() && e != reserved() && e != email()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','enabled','updatedAtMs']));
+      allow delete: if false;
+    }
+    match /portalSettings/access {
+      allow get: if company();
+      allow create, update: if admin() && request.resource.data.keys().hasOnly(['mode','updatedAtMs','updatedBy'])
+        && request.resource.data.mode in ['domain','whitelist'] && request.resource.data.updatedBy == email();
+      allow delete: if false;
+    }
+    function periodPath(id) { return /databases/$(database)/documents/assessmentPeriods/$(id); }
+    function bankPath(id) { return /databases/$(database)/documents/assessmentPeriodBanks/$(id); }
+    function sessionPath(uid,id) { return /databases/$(database)/documents/assessmentSessions/$(uid)/active/$(id); }
+    function resultPath(id,uid) { return /databases/$(database)/documents/assessmentPeriods/$(id)/results/$(uid); }
+    function attemptPath(uid,id) { return /databases/$(database)/documents/assessmentResults/$(uid)/attempts/$(id); }
+    function period(id) { return get(periodPath(id)).data; }
+    function open(p) {
+      return p.status == 'published' && request.time.toMillis() >= p.openAtMs && request.time.toMillis() < p.closeAtMs;
+    }
+    function validPeriod(d) {
+      return d.keys().hasOnly(['title','course','openAtMs','closeAtMs','questionCount','passPercent','durationMinutes','maxAttempts','status','createdAtMs','createdBy','updatedAtMs','publishedAtMs','publishedBy','closedAtMs','closedBy','bankVersion'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 150
+        && d.course in ['general','technical'] && d.openAtMs is int && d.closeAtMs is int
+        && d.closeAtMs > d.openAtMs && d.closeAtMs - d.openAtMs <= 31622400000
+        && d.questionCount is int && d.questionCount >= 5 && d.questionCount <= 50
+        && d.passPercent is int && d.passPercent >= 1 && d.passPercent <= 100
+        && d.durationMinutes is int && d.durationMinutes >= 5 && d.durationMinutes <= 1440
+        && d.maxAttempts is int && d.maxAttempts >= 0 && d.maxAttempts <= 100
+        && d.createdAtMs is int && d.createdBy is string;
+    }
+    function validBank(d) {
+      return d.keys().hasOnly(['version','questions']) && d.version is string && d.version.size() > 0 && d.version.size() <= 80
+        && d.questions is list && d.questions.size() >= 5 && d.questions.size() <= 150;
+    }
+    function count(id,uid) { return exists(resultPath(id,uid)) ? get(resultPath(id,uid)).data.attemptCount : 0; }
+    function canAttempt(id,uid,p) { return p.maxAttempts == 0 || count(id,uid) < p.maxAttempts; }
+    function expired(s,p) {
+      return !('startedAt' in s) || request.time.toMillis() >= s.startedAt.toMillis() + p.durationMinutes * 60000;
+    }
+    function validSession(id,uid,d) {
+      let p = period(id);
+      return open(p) && canAttempt(id,uid,p) && d.keys().hasOnly(['id','periodId','startedAt'])
+        && d.id is string && d.id.matches('^[a-f0-9-]{36}$') && d.periodId == id && d.startedAt == request.time
+        && !exists(attemptPath(uid,d.id));
+    }
+    function validAttempt(uid,id,d) {
+      let p = period(d.periodId);
+      let s = get(sessionPath(uid,d.periodId)).data;
+      let r = getAfter(resultPath(d.periodId,uid)).data;
+      return d.keys().hasOnly(['id','course','periodId','periodTitle','bankVersion','passPercent','startedAt','submittedAt','submittedAtMs','correct','total','percent','passed','attemptNumber','grading'])
+        && d.id == id && id.matches('^[a-f0-9-]{36}$') && open(p) && canAttempt(d.periodId,uid,p)
+        && s.id == id && s.startedAt == d.startedAt && !expired(s,p) && d.submittedAt == request.time
+        && d.submittedAtMs is int && d.submittedAtMs >= request.time.toMillis()-300000 && d.submittedAtMs <= request.time.toMillis()+300000
+        && d.course == p.course && d.periodTitle == p.title && d.bankVersion == p.bankVersion && d.passPercent == p.passPercent
+        && d.total == p.questionCount && d.correct is int && d.correct >= 0 && d.correct <= d.total
+        && d.percent is int && d.percent >= 0 && d.percent <= 100
+        && 2*d.correct*100 >= (2*d.percent-1)*d.total && 2*d.correct*100 < (2*d.percent+1)*d.total
+        && d.passed == (d.correct*100 >= d.total*p.passPercent) && d.grading == 'client-unverified'
+        && d.attemptNumber == count(d.periodId,uid)+1 && r.lastAttemptId == id && r.attemptCount == d.attemptNumber;
+    }
+    function validResult(id,uid,d,old) {
+      let a = getAfter(attemptPath(uid,d.lastAttemptId)).data;
+      let best = old.get('bestPercent',0);
+      return d.keys().hasOnly(['uid','email','name','attemptCount','bestPercent','passedCount','lastPercent','lastSubmittedAtMs','lastAttemptId','grading'])
+        && d.uid == uid && d.email == email() && d.name is string && d.name.size() <= 120
+        && !exists(attemptPath(uid,d.lastAttemptId)) && a.periodId == id && a.id == d.lastAttemptId
+        && a.submittedAt == request.time && a.grading == 'client-unverified'
+        && d.attemptCount == old.get('attemptCount',0)+1 && d.attemptCount == a.attemptNumber
+        && d.bestPercent == (a.percent > best ? a.percent : best)
+        && d.passedCount == old.get('passedCount',0)+(a.passed ? 1 : 0)
+        && d.lastPercent == a.percent && d.lastSubmittedAtMs == a.submittedAtMs && d.grading == 'client-unverified';
+    }
+    match /assessmentPeriods/{id} {
+      allow get: if admin() || registered() && resource.data.status == 'published';
+      allow list: if request.query.limit <= 101 && (admin() || registered() && resource.data.status == 'published');
+      allow create: if admin() && validPeriod(request.resource.data) && request.resource.data.status == 'draft'
+        && request.resource.data.createdBy == email();
+      allow update: if admin() && validPeriod(request.resource.data) && (
+        resource.data.status == 'draft' && request.resource.data.status == 'draft'
+          && request.resource.data.createdAtMs == resource.data.createdAtMs && request.resource.data.createdBy == resource.data.createdBy
+        || resource.data.status == 'draft' && request.resource.data.status == 'published'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','bankVersion','publishedAtMs','publishedBy'])
+          && request.resource.data.closeAtMs > request.time.toMillis()
+          && getAfter(bankPath(id)).data.version == request.resource.data.bankVersion
+          && getAfter(bankPath(id)).data.questions.size() >= resource.data.questionCount
+        || resource.data.status in ['draft','published'] && request.resource.data.status == 'closed'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAtMs','closedBy'])
+      );
+      allow delete: if false;
+      match /results/{uid} {
+        allow get: if admin() || own(uid);
+        allow list: if admin() && request.query.limit <= 51;
+        allow create: if own(uid) && validResult(id,uid,request.resource.data,{});
+        allow update: if own(uid) && validResult(id,uid,request.resource.data,resource.data);
+        allow delete: if false;
+      }
+    }
+    match /assessmentBanks/{course} {
+      allow get: if admin();
+      allow create, update: if admin() && course in ['general','technical'] && validBank(request.resource.data);
+      allow list, delete: if false;
+    }
+    match /assessmentPeriodBanks/{id} {
+      allow get: if admin() || registered() && open(period(id));
+      allow create: if admin() && validBank(request.resource.data)
+        && get(periodPath(id)).data.status == 'draft'
+        && getAfter(periodPath(id)).data.status == 'published'
+        && getAfter(periodPath(id)).data.bankVersion == request.resource.data.version;
+      allow list, update, delete: if false;
+    }
+    match /assessmentSessions/{uid}/active/{id} {
+      allow get: if own(uid);
+      allow create: if own(uid) && validSession(id,uid,request.resource.data);
+      allow update: if own(uid) && validSession(id,uid,request.resource.data)
+        && (expired(resource.data,period(id)) || exists(attemptPath(uid,resource.data.id)));
+      allow list, delete: if false;
+    }
+    match /assessmentResults/{uid}/attempts/{id} {
+      allow get: if own(uid) || admin();
+      allow list: if (own(uid) || admin()) && request.query.limit <= 101;
+      allow create: if own(uid) && validAttempt(uid,id,request.resource.data);
+      allow update, delete: if false;
+    }
+    match /assessmentResults/{uid} { allow get: if own(uid) || admin(); allow write, list: if false; }
+    match /portalAudit/{id} {
+      allow create: if admin() && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','target','at'])
+        && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == email()
+        && request.resource.data.at == request.time && request.resource.data.action is string && request.resource.data.target is string;
+      allow read, update, delete: if false;
+    }
     match /{path=**} { allow read, write: if false; }
   }
 }
