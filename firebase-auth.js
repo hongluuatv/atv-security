@@ -1,5 +1,5 @@
 // Firebase Authentication: Google popup, session persistence, verified-email UI filter.
-// The static portal itself is public code; this is not server-side access control.
+// Firestore Security Rules enforce data access; static HTML remains public.
 const screen = document.getElementById("authScreen");
 const shell = document.getElementById("portalShell");
 const login = document.getElementById("googleLogin");
@@ -98,7 +98,7 @@ async function boot() {
         if (auth.currentUser?.uid !== user.uid) return;
         denied = true;
         closePortal();
-        message(err?.code === "functions/permission-denied" ? err.message : "Không thể xác minh quyền tài khoản. Quản trị viên cần triển khai Cloud Functions và Firestore (v0.5).", true);
+        message(err?.code === "permission-denied" ? "Không có quyền truy cập hoặc Firestore Security Rules chưa được Publish. "+err.message : "Không thể xác minh quyền tài khoản. Kiểm tra Firestore đã tạo và Security Rules v0.6 đã Publish.", true);
         try { await signOut(auth); } catch {}
       }
     }, () => { closePortal(); message("Lỗi kiểm tra phiên xác thực.", true); login.disabled = true; });
