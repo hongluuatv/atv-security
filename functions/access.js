@@ -2,6 +2,7 @@
 const {HttpsError}=require("firebase-functions/v2/https");
 const {getFirestore}=require("firebase-admin/firestore");
 const domain="arrow-tech.vn";
+const DEFAULT_ADMIN="honglm@arrow-tech.vn";
 const validEmail=e=>typeof e==="string"&&e.length<=254&&/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@arrow-tech\.vn$/.test(e)&&!e.split("@")[0].includes("/");
 function tokenIdentity(req){
   const a=req.auth,t=a?.token,email=String(t?.email||"").trim().toLowerCase();
@@ -16,6 +17,14 @@ async function profile(req,tx=null,{register=false,admin=false}={}){
   const who=tokenIdentity(req),ref=users().doc(who.email);
   const snap=tx?await tx.get(ref):await ref.get();
   let data=snap.data();
+  // Only a verified Google identity for this exact address can bind the reserved admin.
+  if(who.email===DEFAULT_ADMIN&&register&&tx){
+    if(data?.uid&&data.uid!==who.uid)throw new HttpsError("permission-denied","Định danh admin không khớp. Liên hệ quản trị Firebase.");
+    if(!data||!data.uid||data.role!=="admin"||data.enabled!==true){
+      data={...data,email:who.email,uid:who.uid,name:who.name,role:"admin",enabled:true,createdAtMs:data?.createdAtMs||Date.now(),firstLoginAtMs:data?.firstLoginAtMs||Date.now()};
+      tx.set(ref,data);audit(tx,who,"admin.default.bind",who.email);
+    }
+  }
   if(!data||!data.uid){
     if(!register||!tx)throw new HttpsError("permission-denied","Tài khoản chưa được đăng ký hoặc cấp quyền.");
     if(!data){
@@ -35,4 +44,4 @@ async function profile(req,tx=null,{register=false,admin=false}={}){
 function audit(tx,actor,action,target,details={}){
   tx.create(getFirestore().collection("portalAudit").doc(),{actorUid:actor.uid,actorEmail:actor.email,action,target,details,atMs:Date.now()});
 }
-module.exports={profile,tokenIdentity,users,policyRef,validEmail,audit,domain};
+module.exports={profile,tokenIdentity,users,policyRef,validEmail,audit,domain,DEFAULT_ADMIN};
