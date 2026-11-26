@@ -45,3 +45,6 @@ Tại Quản lý hệ thống → Kỳ đánh giá → Ngân hàng câu hỏi t�
 
 ## v0.6.6
 Tách nhóm ĐÁNH GIÁ thành ATTT định kỳ, Nhân viên mới và Kỹ thuật (Tech). Mỗi trang chỉ hiển thị kỳ và lịch sử của khóa tương ứng; giữ trạng thái làm bài riêng trong phiên trang. Lọc dữ liệu theo khóa ở client sau truy vấn single-field có phân trang, không cần composite index; với dữ liệu lịch sử lớn có thể phát sinh nhiều lượt đọc Firestore. Giữ nguyên Security Rules, ngân hàng đề và dữ liệu cũ.
+
+## v0.6.8 — Cập nhật cấu hình kỳ đánh giá
+Admin có thể sửa kỳ nháp và kỳ đã công bố. Trước giờ mở, có thể sửa tên, ngày mở/đóng, số câu (không vượt ngân hàng đã chốt), điểm đạt, thời lượng và số lượt; không đổi khóa hoặc ngân hàng đã công bố. Từ giờ mở, chỉ đổi tên, gia hạn ngày đóng và tăng số lượt (hoặc không giới hạn); bảo toàn thông số chấm điểm và lượt đã nộp. Kỳ hết hạn tự nhiên có thể gia hạn nếu trạng thái còn published; kỳ đóng thủ công không sửa được. Dữ liệu lịch sử không ghi đè. Cần Publish firestore.rules mới; các thao tác update được ghi audit bởi ứng dụng. Kiểm tra Rules trên Firebase trước nghiệm thu.
