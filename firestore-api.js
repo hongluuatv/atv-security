@@ -55,6 +55,59 @@ window.ATV_FIRESTORE=(()=>{
         return {...actor(),role:p.role,enabled:true};
       });}catch(err){if(err?.code==="permission-denied"&&/Missing or insufficient permissions/i.test(err.message||""))fail("Firestore từ chối khi "+stage+". Kiểm tra Rules v0.6 đã Publish đúng project atv-security, database (default), và App Check.","permission-denied");throw err;}
     }
+    const ONBOARD="onboarding-always",onboardConfig={course:"onboarding",title:"Đánh giá nhân viên mới",questionCount:15,passPercent:80,durationMinutes:30,maxAttempts:0};
+    const completion=()=>ref("onboardingCompletion",uid),onboardSession=()=>ref("onboardingSessions",uid);
+    async function onboardingStatus(){
+      let completed=await get(completion());
+      if(!completed){
+        // Migrate a previous pass from any historical onboarding period, not just the first page.
+        let cursor=null,proof=null;
+        for(;;){
+          const qs=[where("course","==","onboarding")];if(cursor)qs.push(startAfter(cursor));qs.push(limit(100));
+          const page=(await getDocsFromServer(query(col("assessmentResults",uid,"attempts"),...qs))).docs;
+          proof=page.find(d=>d.data().passed===true);if(proof||page.length<100)break;cursor=page[page.length-1];
+        }
+        if(proof){
+          await runTransaction(db,async tx=>{const old=await tx.get(completion());if(!old.exists())tx.set(completion(),{uid,attemptId:proof.id,completedAt:stamp()});});
+          completed=await get(completion());
+        }
+      }
+      if(completed){const r=await get(attempt(completed.attemptId));return {completed:true,attempt:r||null};}
+      const b=await get(bank("onboarding"));return {completed:false,ready:Array.isArray(b?.questions)&&b.questions.length>=15,config:onboardConfig};
+    }
+    function onboardPublic(s){
+      return {id:s.id,periodId:ONBOARD,periodTitle:onboardConfig.title,course:"onboarding",version:s.bank.version,passPercent:80,startedAtMs:s.startedAt.toMillis(),expiresAtMs:s.startedAt.toMillis()+30*60000,questions:randomized(s.bank,s.id,15).map(({correctId,...q})=>q)};
+    }
+    async function startOnboarding(){
+      const status=await onboardingStatus();if(status.completed)fail("Bạn đã hoàn thành đánh giá nhân viên mới.");if(!status.ready)fail("Ngân hàng nhân viên mới chưa sẵn sàng. Liên hệ Admin.");
+      await runTransaction(db,async tx=>{
+        const done=await tx.get(completion()),active=(await tx.get(onboardSession())).data(),raw=(await tx.get(bank("onboarding"))).data();
+        if(done.exists())fail("Bạn đã hoàn thành đánh giá nhân viên mới.");
+        const used=active?.id?(await tx.get(attempt(active.id))).exists():false;
+        if(active?.startedAt&&now()<active.startedAt.toMillis()+30*60000&&!used)return;
+        const b=versioned(raw);must(b.questions.length>=15,"Ngân hàng nhân viên mới không đủ câu.");
+        // Store the exact bank document for rule-enforced immutable in-progress snapshot.
+        tx.set(onboardSession(),{id:crypto.randomUUID(),startedAt:stamp(),bank:raw});
+      });
+      return onboardPublic(await get(onboardSession()));
+    }
+    async function submitOnboarding(d){
+      const aid=d.id;must(typeof aid==="string"&&/^[a-f0-9-]{36}$/.test(aid),"Mã lượt không hợp lệ.");
+      await runTransaction(db,async tx=>{
+        const saved=await tx.get(attempt(aid));if(saved.exists()){must(saved.data().periodId===ONBOARD,"Lượt không khớp.");return;}
+        const done=await tx.get(completion()),s=(await tx.get(onboardSession())).data(),prior=(await tx.get(result(ONBOARD))).data()||{};
+        if(done.exists())fail("Bạn đã hoàn thành đánh giá nhân viên mới.");
+        if(!s?.startedAt||s.id!==aid||now()>=s.startedAt.toMillis()+30*60000)fail("Lượt thi đã hết hạn. Hãy bắt đầu lại.");
+        const qs=randomized(s.bank,aid,15);must(Array.isArray(d.answers)&&d.answers.length===15,"Cần trả lời đủ 15 câu.");
+        const answers=new Map(d.answers.map(a=>[a.questionId,a.optionId]));must(answers.size===15&&qs.every(q=>q.options.some(o=>o.id===answers.get(q.id))),"Đáp án không hợp lệ.");
+        const correct=qs.filter(q=>answers.get(q.id)===q.correctId).length,percent=Math.round(correct*100/15),passed=correct>=12;
+        const record={id:aid,course:"onboarding",periodId:ONBOARD,periodTitle:onboardConfig.title,bankVersion:s.bank.version,passPercent:80,startedAt:s.startedAt,submittedAt:stamp(),submittedAtMs:now(),correct,total:15,percent,passed,attemptNumber:(prior.attemptCount||0)+1,grading:"client-unverified"};
+        tx.set(attempt(aid),record);
+        tx.set(result(ONBOARD),{uid,email,name,attemptCount:record.attemptNumber,bestPercent:Math.max(prior.bestPercent||0,percent),passedCount:(prior.passedCount||0)+(passed?1:0),lastPercent:percent,lastSubmittedAtMs:record.submittedAtMs,lastAttemptId:aid,grading:"client-unverified"});
+        if(passed)tx.set(completion(),{uid,attemptId:aid,completedAt:stamp()});
+      });
+      return await get(attempt(aid));
+    }
     async function listPeriods(data={}){
       // Single-field query: compatible with default Firestore indexes and existing access rules.
       // Paginate before filtering so older expired periods cannot hide newer ones.
@@ -64,7 +117,7 @@ window.ATV_FIRESTORE=(()=>{
         if(cursor)constraints.push(startAfter(cursor));
         constraints.push(limit(100));
         const page=(await getDocsFromServer(query(col("assessmentPeriods"),...constraints))).docs;
-        docs.push(...page.filter(d=>d.data().closeAtMs>now()&&(!data.course||d.data().course===data.course)));
+        docs.push(...page.filter(d=>d.data().course!=="onboarding"&&d.data().closeAtMs>now()&&(!data.course||d.data().course===data.course)));
         if(page.length<100)break;
         cursor=page[page.length-1];
       }
@@ -74,7 +127,7 @@ window.ATV_FIRESTORE=(()=>{
     }
     function makeSession(s,p,b,id){const startedAtMs=s.startedAt.toMillis(),expiresAtMs=Math.min(startedAtMs+p.durationMinutes*60000,p.closeAtMs);return {id:s.id,course:p.course,periodId:id,periodTitle:p.title,version:b.version,passPercent:p.passPercent,startedAtMs,expiresAtMs,questions:randomized(b,s.id,p.questionCount).map(({correctId,...q})=>q)};}
     async function start(data){
-      const id=data.periodId;must(validId(id),"Chọn kỳ đánh giá.");const p=await get(period(id));requireOpen(p);const b=versioned(await get(snapshot(id)));must(b.questions.length>=p.questionCount,"Ngân hàng đề không đủ câu.");
+      const id=data.periodId;must(validId(id),"Chọn kỳ đánh giá.");if(id===ONBOARD)return startOnboarding();const p=await get(period(id));requireOpen(p);if(p.course==="onboarding")fail("Nhân viên mới sử dụng bài đánh giá thường trực.");const b=versioned(await get(snapshot(id)));must(b.questions.length>=p.questionCount,"Ngân hàng đề không đủ câu.");
       const currentPeriod=await runTransaction(db,async tx=>{
         const fresh=(await tx.get(period(id))).data(),s=(await tx.get(session(id))).data(),r=(await tx.get(result(id))).data();requireOpen(fresh);
         if(fresh.maxAttempts>0&&(r?.attemptCount||0)>=fresh.maxAttempts)fail("Đã hết số lượt thi.");
@@ -85,13 +138,13 @@ window.ATV_FIRESTORE=(()=>{
       const s=await get(session(id));return makeSession(s,currentPeriod,b,id);
     }
     async function submit(data){
-      const id=data.periodId,aid=data.id;must(validId(id)&&typeof aid==="string"&&/^[a-f0-9-]{36}$/.test(aid),"Mã lượt không hợp lệ.");
+      const id=data.periodId,aid=data.id;if(id===ONBOARD)return submitOnboarding(data);must(validId(id)&&typeof aid==="string"&&/^[a-f0-9-]{36}$/.test(aid),"Mã lượt không hợp lệ.");
       const existing=await get(attempt(aid));if(existing){must(existing.periodId===id,"Kỳ không khớp.");return existing;}
       const b=versioned(await get(snapshot(id)));
       await runTransaction(db,async tx=>{
         const saved=await tx.get(attempt(aid));if(saved.exists()){must(saved.data().periodId===id,"Kỳ không khớp.");return;}
         const p=(await tx.get(period(id))).data(),s=(await tx.get(session(id))).data(),prior=(await tx.get(result(id))).data()||{};
-        requireOpen(p);if(!s?.startedAt||s.id!==aid||now()>=s.startedAt.toMillis()+p.durationMinutes*60000)fail("Lượt thi hết hạn. Hãy mở lượt mới.");
+        requireOpen(p);if(p.course==="onboarding")fail("Nhân viên mới sử dụng bài đánh giá thường trực.");if(!s?.startedAt||s.id!==aid||now()>=s.startedAt.toMillis()+p.durationMinutes*60000)fail("Lượt thi hết hạn. Hãy mở lượt mới.");
         if(p.maxAttempts>0&&(prior.attemptCount||0)>=p.maxAttempts)fail("Đã hết số lượt thi.");
         const qs=randomized(b,aid,p.questionCount);must(Array.isArray(data.answers)&&data.answers.length===qs.length,"Cần trả lời đầy đủ.");
         const answers=new Map(data.answers.map(a=>[a.questionId,a.optionId]));must(answers.size===qs.length&&qs.every(q=>q.options.some(o=>o.id===answers.get(q.id))),"Đáp án không hợp lệ.");
@@ -126,7 +179,7 @@ window.ATV_FIRESTORE=(()=>{
     async function listAdminPeriods(d){const [q,g,o,t]=await Promise.all([paged(col("assessmentPeriods"),"createdAtMs",d.cursor),get(bank("general")),get(bank("onboarding")),get(bank("technical"))]);const info=b=>({version:b?.version||null,count:b?.questions?.length||0});return {periods:q.rows.map(s=>({id:s.id,...s.data()})),nextCursor:q.nextCursor,banks:{general:info(g),onboarding:info(o),technical:info(t)}};}
     async function savePeriod(d){
       const x=d.period||{},title=String(x.title||"").trim(),p={title,course:x.course,openAtMs:x.openAtMs,closeAtMs:x.closeAtMs,questionCount:x.questionCount,passPercent:x.passPercent,durationMinutes:x.durationMinutes,maxAttempts:x.maxAttempts};
-      must(title&&title.length<=150&&["general","onboarding","technical"].includes(p.course)&&Number.isSafeInteger(p.openAtMs)&&Number.isSafeInteger(p.closeAtMs)&&p.closeAtMs>p.openAtMs&&p.closeAtMs-p.openAtMs<=366*86400000&&Number.isInteger(p.questionCount)&&p.questionCount>=5&&p.questionCount<=50&&Number.isInteger(p.passPercent)&&p.passPercent>=1&&p.passPercent<=100&&Number.isInteger(p.durationMinutes)&&p.durationMinutes>=5&&p.durationMinutes<=1440&&Number.isInteger(p.maxAttempts)&&p.maxAttempts>=0&&p.maxAttempts<=100,"Cấu hình kỳ không hợp lệ.");
+      must(title&&title.length<=150&&["general","technical"].includes(p.course)&&Number.isSafeInteger(p.openAtMs)&&Number.isSafeInteger(p.closeAtMs)&&p.closeAtMs>p.openAtMs&&p.closeAtMs-p.openAtMs<=366*86400000&&Number.isInteger(p.questionCount)&&p.questionCount>=5&&p.questionCount<=50&&Number.isInteger(p.passPercent)&&p.passPercent>=1&&p.passPercent<=100&&Number.isInteger(p.durationMinutes)&&p.durationMinutes>=5&&p.durationMinutes<=1440&&Number.isInteger(p.maxAttempts)&&p.maxAttempts>=0&&p.maxAttempts<=100,"Cấu hình kỳ không hợp lệ.");
       const r=d.id?period(d.id):doc(col("assessmentPeriods"));if(d.id)must(validId(d.id),"Mã kỳ không hợp lệ.");
       await runTransaction(db,async tx=>{
         const old=(await tx.get(r)).data();
@@ -147,7 +200,7 @@ window.ATV_FIRESTORE=(()=>{
         audit(tx,old?.status==="published"?"period.update":"period.save",r.id);
       });return {id:r.id};
     }
-    async function publish(d){must(validId(d.id),"Mã kỳ không hợp lệ.");await runTransaction(db,async tx=>{const r=period(d.id),p=(await tx.get(r)).data();if(p?.status!=="draft"||p.closeAtMs<=now())fail("Chỉ công bố kỳ nháp chưa hết hạn.");const b=versioned((await tx.get(bank(p.course))).data());must(b.questions.length>=p.questionCount,"Ngân hàng chưa đủ câu.");if(b.version.startsWith("DEMO")&&!d.confirmDemo)fail("Cần xác nhận đề DEMO.");tx.set(snapshot(d.id),b);tx.update(r,{status:"published",bankVersion:b.version,publishedAtMs:now(),publishedBy:email});audit(tx,"period.publish",d.id);});return {ok:true};}
+    async function publish(d){must(validId(d.id),"Mã kỳ không hợp lệ.");await runTransaction(db,async tx=>{const r=period(d.id),p=(await tx.get(r)).data();if(p?.status!=="draft"||p.course==="onboarding"||p.closeAtMs<=now())fail("Chỉ công bố kỳ nháp chưa hết hạn.");const b=versioned((await tx.get(bank(p.course))).data());must(b.questions.length>=p.questionCount,"Ngân hàng chưa đủ câu.");if(b.version.startsWith("DEMO")&&!d.confirmDemo)fail("Cần xác nhận đề DEMO.");tx.set(snapshot(d.id),b);tx.update(r,{status:"published",bankVersion:b.version,publishedAtMs:now(),publishedBy:email});audit(tx,"period.publish",d.id);});return {ok:true};}
     async function close(d){must(validId(d.id),"Mã kỳ không hợp lệ.");await runTransaction(db,async tx=>{const r=period(d.id),p=(await tx.get(r)).data();if(!p||!["draft","published"].includes(p.status))fail("Kỳ không thể đóng.");tx.update(r,{status:"closed",closedAtMs:now(),closedBy:email});audit(tx,"period.close",d.id);});return {ok:true};}
     async function adminResults(d){must(validId(d.id),"Mã kỳ không hợp lệ.");const q=await paged(col("assessmentPeriods",d.id,"results"),"email",d.cursor);return {results:q.rows.map(r=>r.data()),nextCursor:q.nextCursor};}
     async function saveBank(d){must(["general","onboarding","technical"].includes(d.course),"Khóa không hợp lệ.");const b=versioned(d.bank);const tx=writeBatch(db);tx.set(bank(d.course),b);audit(tx,"bank.save",d.course);await tx.commit();return {version:b.version,count:b.questions.length};}
@@ -159,7 +212,7 @@ window.ATV_FIRESTORE=(()=>{
       const tx=writeBatch(db);for(const [k,b] of validated)tx.set(bank(k),b);audit(tx,"bank.import","general,onboarding,technical");await tx.commit();
       return {banks:Object.fromEntries(validated.map(([k,b])=>[k,{version:b.version,count:b.questions.length}]))};
     }
-    const handlers={getPortalProfile:profile,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminSaveBank:saveBank,adminImportBanks:importBanks};
+    const handlers={getPortalProfile:profile,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminSaveBank:saveBank,adminImportBanks:importBanks};
     return {call:async(name,data={})=>{if(!handlers[name])fail("Chức năng không hợp lệ.");return handlers[name](data);}};
   }
   return {create};
