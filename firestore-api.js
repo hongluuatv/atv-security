@@ -56,7 +56,19 @@ window.ATV_FIRESTORE=(()=>{
       });}catch(err){if(err?.code==="permission-denied"&&/Missing or insufficient permissions/i.test(err.message||""))fail("Firestore từ chối khi "+stage+". Kiểm tra Rules v0.6 đã Publish đúng project atv-security, database (default), và App Check.","permission-denied");throw err;}
     }
     async function listPeriods(){
-      const docs=(await getDocsFromServer(query(col("assessmentPeriods"),where("status","==","published"),where("closeAtMs",">",now()),orderBy("closeAtMs"),limit(100)))).docs;
+      // Single-field query: compatible with default Firestore indexes and existing access rules.
+      // Paginate before filtering so older expired periods cannot hide newer ones.
+      const docs=[];let cursor=null;
+      for(;;){
+        const constraints=[where("status","==","published")];
+        if(cursor)constraints.push(startAfter(cursor));
+        constraints.push(limit(100));
+        const page=(await getDocsFromServer(query(col("assessmentPeriods"),...constraints))).docs;
+        docs.push(...page.filter(d=>d.data().closeAtMs>now()));
+        if(page.length<100)break;
+        cursor=page[page.length-1];
+      }
+      docs.sort((a,b)=>a.data().closeAtMs-b.data().closeAtMs||a.id.localeCompare(b.id));
       const rs=await Promise.all(docs.map(async d=>{const p=d.data(),r=await get(result(d.id));return {id:d.id,...p,attemptCount:r?.attemptCount||0,bestPercent:r?.bestPercent??null};}));
       return {periods:rs,nowMs:now()};
     }
