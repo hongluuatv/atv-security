@@ -44,6 +44,10 @@ function errorText(err) {
 }
 async function boot() {
   closePortal();
+  if (!window.ATV_FIREBASE_CONFIG) {
+    message("Không tải được firebase-config.js. Hãy kiểm tra kết nối và bản triển khai GitHub Pages, sau đó tải lại trang.", true);
+    return;
+  }
   if (!["apiKey","authDomain","projectId","appId"].every(k => typeof config[k] === "string" && config[k].trim())) {
     message("Firebase chưa được cấu hình. Quản trị viên cần điền Web App configuration trong firebase-config.js.", true);
     return;
