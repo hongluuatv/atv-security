@@ -130,6 +130,18 @@ service cloud.firestore {
           && request.resource.data.closeAtMs > request.time.toMillis()
           && getAfter(bankPath(id)).data.version == request.resource.data.bankVersion
           && getAfter(bankPath(id)).data.questions.size() >= resource.data.questionCount
+        || resource.data.status == 'published' && request.resource.data.status == 'published'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','openAtMs','closeAtMs','questionCount','passPercent','durationMinutes','maxAttempts','updatedAtMs'])
+          && get(bankPath(id)).data.questions.size() >= request.resource.data.questionCount
+          && (request.time.toMillis() < resource.data.openAtMs
+            || request.resource.data.openAtMs == resource.data.openAtMs
+              && request.resource.data.questionCount == resource.data.questionCount
+              && request.resource.data.passPercent == resource.data.passPercent
+              && request.resource.data.durationMinutes == resource.data.durationMinutes
+              && request.resource.data.closeAtMs >= resource.data.closeAtMs
+              && (request.resource.data.maxAttempts == resource.data.maxAttempts
+                || resource.data.maxAttempts > 0
+                  && (request.resource.data.maxAttempts == 0 || request.resource.data.maxAttempts >= resource.data.maxAttempts)))
         || resource.data.status in ['draft','published'] && request.resource.data.status == 'closed'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAtMs','closedBy'])
       );
