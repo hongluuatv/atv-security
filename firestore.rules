@@ -67,7 +67,7 @@ service cloud.firestore {
     function validPeriod(d) {
       return d.keys().hasOnly(['title','course','openAtMs','closeAtMs','questionCount','passPercent','durationMinutes','maxAttempts','status','createdAtMs','createdBy','updatedAtMs','publishedAtMs','publishedBy','closedAtMs','closedBy','bankVersion'])
         && d.title is string && d.title.size() > 0 && d.title.size() <= 150
-        && d.course in ['general','technical'] && d.openAtMs is int && d.closeAtMs is int
+        && d.course in ['general','onboarding','technical'] && d.openAtMs is int && d.closeAtMs is int
         && d.closeAtMs > d.openAtMs && d.closeAtMs - d.openAtMs <= 31622400000
         && d.questionCount is int && d.questionCount >= 5 && d.questionCount <= 50
         && d.passPercent is int && d.passPercent >= 1 && d.passPercent <= 100
@@ -144,7 +144,7 @@ service cloud.firestore {
     }
     match /assessmentBanks/{course} {
       allow get: if admin();
-      allow create, update: if admin() && course in ['general','technical'] && validBank(request.resource.data);
+      allow create, update: if admin() && course in ['general','onboarding','technical'] && validBank(request.resource.data);
       allow list, delete: if false;
     }
     match /assessmentPeriodBanks/{id} {
