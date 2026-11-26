@@ -36,9 +36,11 @@ function wrap(str,width,size){
  if(line)lines.push(line);return lines;
 }
 function tx(str,x,y,w,size,color,bold=false,maxLines=3){const lines=wrap(str,w,size).slice(0,maxLines);return '<text x="'+x+'" y="'+y+'" text-anchor="middle" fill="'+color+'" font-size="'+size+'" font-weight="'+(bold?700:500)+'">'+lines.map((s,i)=>'<tspan x="'+x+'" dy="'+(i?size*1.18:0)+'">'+esc(s)+'</tspan>').join("")+'</text>';}
-function card(n){const [bg,fg]=palette[n.tone]||palette.blue;const small=n.h<100, iconSize=small?22:35, size=small?13:15, subSize=small?11:12;
- const t=pick(n.t),sub=pick(n.sub),titleLines=wrap(t,n.w-16,size).slice(0,2),titleY=n.y+(small?36:61),subY=titleY+(titleLines.length-1)*size*1.18+(small?15:20);
- return '<g><rect x="'+n.x+'" y="'+n.y+'" width="'+n.w+'" height="'+n.h+'" rx="12" fill="'+bg+'" stroke="'+fg+'" stroke-opacity=".34"/>'+icon(n.icon,n.x+(n.w-iconSize)/2,n.y+(small?8:13),iconSize,fg)+tx(t,n.x+n.w/2,titleY,n.w-16,size,fg,true,2)+tx(sub,n.x+n.w/2,subY,n.w-16,subSize,"#40546b",false,2)+'</g>';
+function card(n){const [bg,fg]=palette[n.tone]||palette.blue,compact=n.h<100,iconSize=compact?19:32;
+ const t=pick(n.t),sub=pick(n.sub);let size=compact?13:15,subSize=compact?11:12,tl,sl;const width=n.w-16;
+ for(let i=0;i<6;i++){tl=wrap(t,width,size);sl=wrap(sub,width,subSize);const h=tl.length*size*1.18+sl.length*subSize*1.18;if(h<=n.h-(compact?31:48))break;size=Math.max(11,size-.6);subSize=Math.max(9.5,subSize-.5);}
+ const total=tl.length*size*1.18+sl.length*subSize*1.18+4,top=n.y+(compact?29:45),available=n.h-(top-n.y)-5,start=top+Math.max(0,(available-total)/2),titleY=start+size,subY=start+tl.length*size*1.18+4+subSize;
+ return '<g><rect x="'+n.x+'" y="'+n.y+'" width="'+n.w+'" height="'+n.h+'" rx="12" fill="'+bg+'" stroke="'+fg+'" stroke-opacity=".34"/>'+icon(n.icon,n.x+(n.w-iconSize)/2,n.y+(compact?5:9),iconSize,fg)+tx(t,n.x+n.w/2,titleY,width,size,fg,true,tl.length)+tx(sub,n.x+n.w/2,subY,width,subSize,"#40546b",false,sl.length)+'</g>';
 }
 function edge(e){const color=palette[e.tone]?.[1]||palette.blue[1],dx=e.x2-e.x1,dy=e.y2-e.y1,ang=Math.atan2(dy,dx),bx=e.x2-9*Math.cos(ang),by=e.y2-9*Math.sin(ang),px=4.5*Math.sin(ang),py=-4.5*Math.cos(ang);return '<path d="M'+e.x1+' '+e.y1+' L'+bx+' '+by+'" stroke="'+color+'" stroke-width="2.4" fill="none" '+(e.dash?'stroke-dasharray="5 5"':'')+'/><path d="M'+e.x2+' '+e.y2+' L'+(bx+px)+' '+(by+py)+' L'+(bx-px)+' '+(by-py)+' Z" fill="'+color+'"/>';}
 function email(d){
