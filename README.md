@@ -78,3 +78,19 @@ node functions/seed.js examples/demo-technical.json technical atv-security
 5. Firebase backend và Pages cần triển khai độc lập. GitHub Pages chỉ phục vụ frontend, không chạy Cloud Functions.
 
 Tài liệu chính thức: https://firebase.google.com/docs/functions/callable ; https://firebase.google.com/docs/functions/get-started ; https://firebase.google.com/docs/firestore/security/rules-conditions .
+
+## Quản lý hệ thống (v0.5 — thay thế hành vi đánh giá v0.4)
+
+- **Admin mặc định:** `honglm@arrow-tech.vn`. Cloud Functions kiểm tra Firebase ID token của Google, email đã xác thực và email chính xác; lần đăng nhập đầu tiên tự tạo/cập nhật hồ sơ Admin, gắn UID và ghi audit. Không cần bootstrap thủ công cho email này. Không thể sửa/khóa admin mặc định qua API quản trị. Nếu UID đã gắn không khớp, Firebase IAM admin phải xử lý định danh thủ công.
+- Admin quản lý người dùng theo domain hoặc whitelist, vai trò admin/employee, khóa/mở khóa và xem kết quả theo kỳ. Whitelist yêu cầu email mới được thêm trước; tài khoản đã đăng ký còn hiệu lực cho đến khi bị khóa. Admin khác không được tự khóa/hạ quyền mình. API kiểm tra hồ sơ từ Firestore, không tin role client. Nội dung website tĩnh vẫn công khai.
+- Từ v0.5, đăng nhập cần callable `getPortalProfile` hoạt động; nếu backend chưa deploy hoặc lỗi, portal từ chối mở giao diện. Không tự cấp quyền dựa trên email phía client.
+- Kỳ đánh giá: admin tạo nháp, chọn General/Technical, thời gian mở/đóng, số câu 5–50, điểm đạt 1–100%, thời lượng 5–1440 phút, số lượt tối đa 0–100 (0 = không giới hạn). Lượt chỉ nộp được trước thời hạn và trước khi kỳ đóng. Khi công bố, sao chép ngân hàng hiện tại thành snapshot riêng, không sửa cấu hình đã công bố. Kỳ DEMO phải được xác nhận rõ; không dùng điểm DEMO làm chứng cứ.
+- Người học chọn kỳ đã công bố; lịch sử cũ không xóa. Các lượt chưa nộp của v0.4 không được chuyển đổi. Giới hạn lượt tính theo lượt đã nộp. Admin xem thống kê người đã nộp theo kỳ, chưa có phân công cá nhân, danh sách người chưa thi, xuất Excel hoặc quản lý ngân hàng qua UI.
+- Collection mới: `portalUsers/{email}`, `portalSettings/access`, `portalAudit/{id}`, `assessmentPeriods/{id}`, `assessmentPeriodBanks/{id}`, `assessmentPeriods/{id}/results/{uid}`; mặc định Firestore Rules từ chối truy cập client trực tiếp. Thực hiện chính sách giữ dữ liệu và kiểm tra quyền IAM.
+- Deploy cùng một project `atv-security` sau khi tạo Firestore và bật Blaze:
+  ```bash
+  npm --prefix functions install
+  npm --prefix functions run check
+  firebase deploy --only functions,firestore:rules,firestore:indexes --project atv-security
+  ```
+  Rà soát rules/indexes hiện có trước khi thay thế. Chờ index build xong. Cần nạp ngân hàng đề riêng theo phần trước, đăng nhập bằng admin mặc định, tạo và công bố kỳ, sau đó kiểm thử với tài khoản nhân viên. Không commit đề thật hoặc thông tin nhân sự.
