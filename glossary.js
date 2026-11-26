@@ -4,7 +4,10 @@ const terms=new Map([["ATTT",["An toàn thông tin / Information Security","Bả
 const regex=new RegExp("(?<![A-Za-z0-9_])(?:"+[...terms.keys()].sort((a,b)=>b.length-a.length).map(x=>x.replace(/[.*+?^$${}()|[\]\\]/g,"\\$&")).join("|")+")(?![A-Za-z0-9_])","g");
 const originals=new WeakMap();
 let dialog=null,last=null;
+const jp=new Map([["ATTT","情報の不正アクセス、改変、開示、利用妨害を防ぐこと。"],["CIA","情報セキュリティの3要素：機密性、完全性、可用性。"],["MFA","パスワードとセキュリティキーなど、異なる種類の認証要素を2つ以上用いる認証。"],["OTP","一度だけ使用できる認証コード。他人と共有しない。"],["NDA","機密情報を保護するための契約。自動的にアクセス権が付与されるわけではない。"],["AI","人工知能。承認されたツールとデータだけを使用する。"],["IT","情報技術。端末、アカウント、システムを支援する担当部門。"],["HR","人事。社員の記録、研修、手続きを担当する。"],["PM","プロジェクト管理者。業務範囲、要件、プロジェクト権限を確認する。"],["QA","品質保証。テストや要件の確認を含む。"],["Dev","ソフトウェア開発者。"],["VPN","設定された範囲で通信を保護する仮想プライベートネットワーク。"],["USB","周辺機器の接続規格。不明なUSB記憶媒体にはマルウェアが含まれる可能性がある。"],["URL","ネットワーク上の資源を示すアドレス。開く前にリンク先を確認する。"],["QR","リンクや認証データなどを格納できる二次元コード。"],["CC","メールのコピーを追加の受信者に送信する。他の受信者にも宛先が表示される。"],["BCC","他の受信者にBCCの宛先を表示せず、メールのコピーを送信する。"],["SDLC","要件定義から運用・保守までのソフトウェア開発ライフサイクル。"],["SSDF","NISTが公開する安全なソフトウェア開発の実践フレームワーク。"],["NIST","米国国立標準技術研究所。セキュリティの基準やガイドを公開する。"],["OWASP","アプリケーションセキュリティのオープンな資料を提供するコミュニティ。"],["ASVS","アプリケーションのセキュリティを検証するためのOWASPの要件。"],["API","ソフトウェア間でデータ交換や機能呼び出しを行うためのインターフェース。"],["UUID","重複の可能性が非常に低い識別子。認可の代わりにはならない。"],["ID","対象、アカウント、資源などを識別するための識別子。"],["SQL","データベースの問い合わせ言語。パラメータ化クエリはSQLインジェクション対策になる。"],["XSS","信頼できない入力がブラウザでコードとして実行される脆弱性。"],["CSRF","認証済みブラウザに意図しない要求を送信させる攻撃。"],["SSRF","サーバーを悪用して許可されていない宛先への要求を送信させる攻撃。"],["TLS","暗号化と認証により通信中のデータを保護するプロトコル。"],["IAM","IDとアクセス権の管理。最小権限を徹底する。"],["SBOM","ソフトウェア構成要素と依存関係のバージョンを示す一覧。"],["CVE","公開されている脆弱性の識別子。"],["SAST","アプリを実行せずにソースコードやコンパイル済みコードを解析する。"],["DAST","稼働中のアプリケーションを対象とするセキュリティテスト。"],["SCA","ソフトウェア構成要素と依存関係のリスクを分析する。"],["CI/CD","統合、テスト、ビルド、提供またはデプロイを自動化する。"],["CI","コードを頻繁に統合し、自動チェックを行うこと。"],["CD","リリース準備またはソフトウェアのデプロイを自動化すること。"],["PR","変更を対象ブランチにマージする前にレビューを依頼する仕組み。"],["RPO","時間で表す、許容可能な最大データ損失。"],["RTO","停止後にサービスを復旧するまでの目標時間。"],["IDE","コードの作成、編集、テストを行う統合開発環境。"],["ISO","国際標準化機構。ISO/IEC 27001は情報セキュリティマネジメントシステムの要件を規定する。"],["IEC","国際電気標準会議。ISOと共同で規格を発行する。"],["CISA","米国サイバーセキュリティ・インフラセキュリティ庁。"],["PO","組織の準備、要件、責任に関するSSDFの実践項目。"],["PS","コード、構成要素、リリースの保護に関するSSDFの実践項目。"],["PW","安全なソフトウェアの作成に関するSSDFの実践項目。"],["RV","脆弱性の検知と対応に関するSSDFの実践項目。"]]);
 const en=()=>window.ATV_I18N?.language==="en";
+const ja=()=>window.ATV_I18N?.language==="ja";
+const closeLabel=()=>ja()?"閉じる":en()?"Close":"Đóng";
 function ensure(){
  if(dialog)return dialog;
  dialog=document.createElement("dialog");dialog.className="glossary-dialog";dialog.id="atvGlossary";dialog.setAttribute("aria-labelledby","glossaryTitle");dialog.setAttribute("data-i18n-ignore","");
@@ -27,9 +30,9 @@ function show(key,trigger){
  const t=terms.get(key);if(!t)return;const d=ensure();last=trigger;
  d.querySelector("#glossaryTitle").textContent=key;
  d.querySelector("#glossaryFull").textContent=t[0];
- d.querySelector("#glossaryDesc").textContent=en()?t[2]:t[1];
- d.querySelector("#glossaryDone").textContent=en()?"Close":"Đóng";
- d.querySelector(".glossary-close").setAttribute("aria-label",en()?"Close":"Đóng");
+ d.querySelector("#glossaryDesc").textContent=ja()?jp.get(key):en()?t[2]:t[1];
+ d.querySelector("#glossaryDone").textContent=closeLabel();
+ d.querySelector(".glossary-close").setAttribute("aria-label",closeLabel());
  if(!d.open)d.showModal();
 }
 function restore(root=document.getElementById("app")){
@@ -45,11 +48,11 @@ function decorate(root=document.getElementById("app")){
   for(const n of nodes){if(seen.has(n)||!n.parentElement||n.parentElement.closest("button,a,summary,label,[data-i18n-ignore]"))continue;seen.add(n);
    const str=n.nodeValue;regex.lastIndex=0;const hits=[...str.matchAll(regex)];if(!hits.length)continue;
    const w=document.createElement("span");w.setAttribute("data-glossary-text","");w.setAttribute("data-i18n-ignore","");
-   let end=0;for(const m of hits){w.append(document.createTextNode(str.slice(end,m.index)));const b=document.createElement("button");b.type="button";b.className="glossary-term";b.textContent=m[0];b.dataset.glossaryTerm=m[0];b.setAttribute("aria-haspopup","dialog");b.setAttribute("aria-label",(en()?"Explain ":"Giải thích ")+m[0]);w.append(b);end=m.index+m[0].length;}
+   let end=0;for(const m of hits){w.append(document.createTextNode(str.slice(end,m.index)));const b=document.createElement("button");b.type="button";b.className="glossary-term";b.textContent=m[0];b.dataset.glossaryTerm=m[0];b.setAttribute("aria-haspopup","dialog");b.setAttribute("aria-label",ja()?m[0]+"の説明":(en()?"Explain ":"Giải thích ")+m[0]);w.append(b);end=m.index+m[0].length;}
    w.append(document.createTextNode(str.slice(end)));originals.set(w,n);n.replaceWith(w);
   }
  }
 }
 function init(){document.addEventListener("click",e=>{const b=e.target.closest("[data-glossary-term]");if(!b)return;e.preventDefault();e.stopPropagation();show(b.dataset.glossaryTerm,b);});}
-return {init,decorate,restore,show,terms};
+return {init,decorate,restore,show,terms,jaDefinitions:jp,close:()=>{if(dialog?.open)dialog.close();}};
 })();
