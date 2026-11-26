@@ -24,3 +24,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,su
 @media print{.exam-toolbar,.lesson-actions,.question-sidebar{position:static}.question-actions,.question-sidebar{display:none}}
 
 .dashboard-exam-status{min-height:30px;margin:9px 0 12px}.home-state{display:inline-block;font-size:12px;font-weight:650;padding:3px 8px;border-radius:6px;background:#f0f3f7;color:var(--muted)}.home-state.is-open{background:#e7f4ed;color:#176348}
+
+/* Lesson-specific visual teaching aids */
+.lesson-diagram{margin:20px 0 24px;border:1px solid #cad9e9;border-radius:14px;background:#fff;padding:16px;min-width:0;overflow:hidden}
+.lesson-diagram-heading{display:flex;flex-direction:column;gap:5px;margin:0 0 12px}.lesson-diagram-kicker{font-size:11px;font-weight:750;letter-spacing:.08em;color:var(--blue)}.lesson-diagram-heading strong{font-size:18px;line-height:1.45;color:var(--ink)}
+.lesson-diagram-scroll{overflow-x:auto;overflow-y:hidden;max-width:100%;border-radius:10px;outline-offset:3px;background:#f7fafd;scrollbar-width:thin}.lesson-diagram-svg{display:block;width:100%;height:auto;min-width:570px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP","Yu Gothic",Meiryo,sans-serif}.lesson-diagram figcaption{font-size:14px;color:var(--muted);line-height:1.6;margin:12px 2px 0}.lesson-diagram-mobile{display:none;font-size:12px;color:var(--muted);margin:7px 0 0}
+@media(max-width:900px){.lesson-diagram-mobile{display:block}}@media(max-width:720px){.lesson-diagram{padding:12px;margin:16px 0 20px}.lesson-diagram-heading strong{font-size:16px}.lesson-diagram figcaption{font-size:13px}.lesson-diagram-mobile{display:block}.lesson-diagram-svg{min-width:570px}}
+@media print{.lesson-diagram{break-inside:avoid}.lesson-diagram-svg{min-width:0}.lesson-diagram-mobile{display:none}}
