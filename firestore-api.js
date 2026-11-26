@@ -75,14 +75,14 @@ window.ATV_FIRESTORE=(()=>{
     function makeSession(s,p,b,id){const startedAtMs=s.startedAt.toMillis(),expiresAtMs=Math.min(startedAtMs+p.durationMinutes*60000,p.closeAtMs);return {id:s.id,course:p.course,periodId:id,periodTitle:p.title,version:b.version,passPercent:p.passPercent,startedAtMs,expiresAtMs,questions:randomized(b,s.id,p.questionCount).map(({correctId,...q})=>q)};}
     async function start(data){
       const id=data.periodId;must(validId(id),"Chọn kỳ đánh giá.");const p=await get(period(id));requireOpen(p);const b=versioned(await get(snapshot(id)));must(b.questions.length>=p.questionCount,"Ngân hàng đề không đủ câu.");
-      await runTransaction(db,async tx=>{
+      const currentPeriod=await runTransaction(db,async tx=>{
         const fresh=(await tx.get(period(id))).data(),s=(await tx.get(session(id))).data(),r=(await tx.get(result(id))).data();requireOpen(fresh);
         if(fresh.maxAttempts>0&&(r?.attemptCount||0)>=fresh.maxAttempts)fail("Đã hết số lượt thi.");
         const old=s?.id?(await tx.get(attempt(s.id))).exists():false;
-        if(s?.startedAt&&now()<s.startedAt.toMillis()+fresh.durationMinutes*60000&&!old)return;
-        tx.set(session(id),{id:crypto.randomUUID(),periodId:id,startedAt:stamp()});
+        if(s?.startedAt&&now()<s.startedAt.toMillis()+fresh.durationMinutes*60000&&!old)return fresh;
+        tx.set(session(id),{id:crypto.randomUUID(),periodId:id,startedAt:stamp()});return fresh;
       });
-      const s=await get(session(id));return makeSession(s,p,b,id);
+      const s=await get(session(id));return makeSession(s,currentPeriod,b,id);
     }
     async function submit(data){
       const id=data.periodId,aid=data.id;must(validId(id)&&typeof aid==="string"&&/^[a-f0-9-]{36}$/.test(aid),"Mã lượt không hợp lệ.");
