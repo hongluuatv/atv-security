@@ -76,9 +76,9 @@ exports.adminClosePeriod=secure(async req=>{
 });
 exports.adminPeriodResults=secure(async req=>{
   await profile(req,null,{admin:true});const id=req.data?.id,cursor=req.data?.cursor;
-  if(!idOk(id)||cursor!=null&&!idOk(cursor))throw new HttpsError("invalid-argument","Mã kỳ hoặc trang không hợp lệ.");
+  if(!idOk(id)||cursor!=null&&(typeof cursor!=="string"||cursor.length>128||cursor.includes("/")))throw new HttpsError("invalid-argument","Mã kỳ hoặc trang không hợp lệ.");
   const ref=periods().doc(id);if(!(await ref.get()).exists)throw new HttpsError("not-found","Kỳ không tồn tại.");
-  let q=ref.collection("results").orderBy("email").orderBy("uid").limit(51);
+  let q=ref.collection("results").orderBy("email").limit(51);
   if(cursor){const d=await ref.collection("results").doc(cursor).get();if(!d.exists)throw new HttpsError("invalid-argument","Trang không tồn tại.");q=q.startAfter(d);}
   const snap=await q.get(),docs=snap.docs.slice(0,50);
   return {results:docs.map(d=>d.data()),nextCursor:snap.size>50?docs[49].id:null};
