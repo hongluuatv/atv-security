@@ -33,3 +33,9 @@ Website đào tạo ATTT tiếng Việt, triển khai trên GitHub Pages. Fireba
 - Cần nghiệm thu bằng ít nhất hai tài khoản: đăng nhập admin, thêm/khóa nhân viên, tạo/công bố kỳ DEMO, nộp bài và thi lại, kiểm tra Firestore và truy cập chéo bị từ chối, hết hạn và giới hạn lượt. Rules chưa kiểm thử trên emulator/project thực tế trong phiên cập nhật này.
 
 Nguồn: https://firebase.google.com/docs/firestore/security/rules-conditions ; https://firebase.google.com/docs/firestore/manage-data/transactions ; https://firebase.google.com/docs/firestore/query-data/indexing .
+
+## v0.6.3 — nhập ngân hàng Excel đã chuyển JSON
+
+Tại Quản lý hệ thống → Kỳ đánh giá → Ngân hàng câu hỏi từ Excel / JSON, chọn JSON dạng `{schemaVersion:1,banks:{general:{version,questions},onboarding:{version,questions},technical:{version,questions}}}`. Xem số câu, xác nhận nhập; ứng dụng ghi ba ngân hàng trong một batch Firestore. Chỉ admin có quyền ghi. Không đưa JSON chứa đáp án lên GitHub. Các câu có metadata id, topic, explanation, source, origin, reference được giữ khi nhập. Đề có topic rút đều giữa các nhóm theo số câu; khuyến nghị General 20, Onboarding 15, Technical 20, 80% đạt. Đề DEMO cũ không đổi. Kỳ đã công bố vẫn dùng snapshot cũ.
+
+**Cần Publish firestore.rules bản mới** để hỗ trợ Onboarding trước khi nhập. Sau đó tạo kỳ mới và công bố. Dữ liệu chỉ được nhập khi admin thực hiện trên portal; GitHub không tự seed Firebase. Các đáp án có thể đọc được bởi người tham gia kỳ đang mở vì phiên bản Spark chấm ở client; không dùng ngân hàng cần giữ bí mật nghiêm ngặt trong kiến trúc này.
