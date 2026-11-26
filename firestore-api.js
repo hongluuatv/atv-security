@@ -255,6 +255,24 @@ window.ATV_FIRESTORE=(()=>{
       for(const [uid,r] of reports)if(!matched.has(uid))rows.push({...r,email:r.email||uid,name:r.name||"",role:"unknown",enabled:null,registered:true,roster:false,outcome:r.passedCount>0?"passed":"failed"});
       rows.sort((a,b)=>a.email.localeCompare(b.email));return {rows,asOf:now()};
     }
+    // Reading acknowledgments are explicit self-attestations, not verified comprehension.
+    const readingVersion="atv-study-2026-11-v1",readingKeys=["rules","general:0","general:1","general:2","general:3","general:4","general:5","onboard:0","onboard:1","onboard:2","onboard:3","onboard:4","technical:0","technical:1","technical:2","technical:3","technical:4","technical:5","technical:6","technical:7"];
+    const readingRef=()=>ref("learningVersions",readingVersion,"readings",uid);
+    function readingItems(raw){const out={};for(const key of readingKeys){const t=raw?.items?.[key];if(t&&typeof t.toMillis==="function")out[key]=t.toMillis();}return out;}
+    async function getReadings(){return {version:readingVersion,items:readingItems(await get(readingRef()))};}
+    async function confirmReading(d){
+      must(d.version===readingVersion&&readingKeys.includes(d.item)&&d.confirmed===true,"Phiên bản hoặc xác nhận học liệu không hợp lệ.");
+      const r=readingRef();
+      await runTransaction(db,async tx=>{const old=(await tx.get(r)).data();if(old?.items?.[d.item])return;
+        tx.set(r,{uid,email,items:{...(old?.items||{}),[d.item]:stamp()},lastItem:d.item,updatedAt:stamp()});
+      });
+      return getReadings();
+    }
+    async function readingReport(){
+      const roster=(await allPages(col("portalUsers"),"email")).map(s=>({email:s.id,...s.data()}));
+      const docs=await allPages(col("learningVersions",readingVersion,"readings"),"email"),byUid=new Map(docs.map(s=>[s.id,s.data()]));
+      return {version:readingVersion,asOf:now(),rows:roster.map(u=>({email:u.email,name:u.name||"",role:u.role,enabled:u.enabled===true,registered:!!u.uid,items:readingItems(byUid.get(u.uid))}))};
+    }
     async function practiceBank(d){
       must(["general","onboarding","technical"].includes(d.course),"Khóa ôn tập không hợp lệ.");
       let raw;try{raw=await get(bank(d.course));}catch(err){if(err?.code==="permission-denied")fail("Không có quyền đọc ngân hàng ôn tập. Admin cần Publish Firestore Rules v0.6.15.","permission-denied");throw err;}
@@ -271,7 +289,7 @@ window.ATV_FIRESTORE=(()=>{
       const tx=writeBatch(db);for(const [k,b] of validated)tx.set(bank(k),b);audit(tx,"bank.import","general,onboarding,technical");await tx.commit();
       return {banks:Object.fromEntries(validated.map(([k,b])=>[k,{version:b.version,count:b.questions.length}]))};
     }
-    const handlers={getPortalProfile:profile,getPracticeBank:practiceBank,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminReportPeriods:reportPeriods,adminAssessmentReport:assessmentReport,adminSaveBank:saveBank,adminImportBanks:importBanks};
+    const handlers={getPortalProfile:profile,getReadings,confirmReading,adminReadingReport:readingReport,getPracticeBank:practiceBank,getOnboardingStatus:onboardingStatus,listAssessmentPeriods:listPeriods,startAssessment:start,submitAssessment:submit,getAssessmentHistory:history,adminListUsers:listUsers,adminSaveUser:saveUser,adminSetAccessMode:setMode,adminListPeriods:listAdminPeriods,adminSavePeriod:savePeriod,adminPublishPeriod:publish,adminClosePeriod:close,adminPeriodResults:adminResults,adminReportPeriods:reportPeriods,adminAssessmentReport:assessmentReport,adminSaveBank:saveBank,adminImportBanks:importBanks};
     return {call:async(name,data={})=>{if(!handlers[name])fail("Chức năng không hợp lệ.");return handlers[name](data);}};
   }
   return {create};
