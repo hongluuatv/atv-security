@@ -1,0 +1,245 @@
+{
+  "version": "DEMO-technical-2026.1",
+  "questions": [
+    {
+      "prompt": "API chỉ xác thực token nhưng không kiểm tra tài nguyên thuộc tenant nào. Kiểm soát đúng?",
+      "options": [
+        "Kiểm quyền đối tượng và tenant phía server",
+        "Ẩn nút frontend",
+        "Dùng UUID là đủ",
+        "Chỉ thêm CAPTCHA"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Biện pháp chính phòng SQL injection?",
+      "options": [
+        "Chỉ validate frontend",
+        "Ẩn lỗi",
+        "Nối chuỗi sau đổi tên biến",
+        "Truy vấn có tham số"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Secret bị commit vào Git. Hành động đúng?",
+      "options": [
+        "Chỉ đổi tên biến",
+        "Bỏ qua vì repo private",
+        "Báo cáo, revoke/rotate và đánh giá phạm vi",
+        "Chỉ xóa dòng code"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "OWASP ASVS chủ yếu dùng để làm gì?",
+      "options": [
+        "Quản lý bảng lương",
+        "Xác định yêu cầu kiểm chứng bảo mật",
+        "Thay mọi hoạt động kiểm thử",
+        "Cấp chứng nhận ISO tự động"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "NIST SSDF áp dụng khi nào?",
+      "options": [
+        "Trong toàn bộ vòng đời phát triển",
+        "Chỉ khi production có sự cố",
+        "Chỉ ở bước UI",
+        "Chỉ sau nghiệm thu"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Threat modeling cần xác định gì?",
+      "options": [
+        "Chỉ số dòng code",
+        "Chỉ danh sách máy",
+        "Chỉ deadline",
+        "Tài sản, luồng dữ liệu, ranh giới tin cậy, rủi ro và kiểm soát"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "File upload cần kiểm soát gì?",
+      "options": [
+        "Chỉ tên file",
+        "Không giới hạn",
+        "Quyền, loại, kích thước và vùng lưu không thực thi",
+        "Chỉ phần mở rộng frontend"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Rủi ro SSRF liên quan đến gì?",
+      "options": [
+        "Thiếu CSS",
+        "Server bị lợi dụng truy cập đích không được phép",
+        "Mật khẩu người dùng dài",
+        "Backup chưa nén"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Để giảm XSS, kiểm soát nào phù hợp?",
+      "options": [
+        "Mã hóa đầu ra theo ngữ cảnh và tránh sink nguy hiểm",
+        "Chỉ ẩn lỗi",
+        "Chỉ đổi URL",
+        "Chỉ mã hóa ổ cứng"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Bảo vệ CSRF phải phù hợp với gì?",
+      "options": [
+        "Số lượng bảng dữ liệu",
+        "Tên miền đẹp",
+        "Dung lượng ổ cứng",
+        "Cơ chế xác thực và phiên trình duyệt"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Dữ liệu test nên ưu tiên gì?",
+      "options": [
+        "Dùng log thật công khai",
+        "Dùng tài khoản khách hàng",
+        "Dữ liệu giả lập đại diện",
+        "Copy toàn bộ production"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "SBOM có tác dụng gì?",
+      "options": [
+        "Lưu mật khẩu",
+        "Theo dõi thành phần phần mềm và phiên bản",
+        "Thay mọi đánh giá nguồn cung",
+        "Chứng minh không còn CVE"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "SCA tập trung vào gì?",
+      "options": [
+        "Dependency và rủi ro thành phần",
+        "Màu giao diện",
+        "Điểm thi nhân viên",
+        "Tốc độ chuột"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "SAST sạch có thay kiểm thử sai quyền được không?",
+      "options": [
+        "Có, luôn luôn",
+        "Có nếu dùng framework",
+        "Có nếu có TLS",
+        "Không, cần test logic và quyền riêng"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Phát hiện bucket chứa tài liệu public ngoài phạm vi. Cần?",
+      "options": [
+        "Bỏ qua vì test",
+        "Công khai thêm để tiện tải",
+        "Hạn chế quyền nếu được phép, báo và đánh giá phạm vi",
+        "Chỉ đổi tên bucket"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "PR từ nguồn chưa tin cậy có nên chạy với secret deploy production?",
+      "options": [
+        "Có nếu không có test",
+        "Không, tách quyền và bảo vệ pipeline",
+        "Có nếu build nhanh",
+        "Có nếu tên PR đúng"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Release có lỗi nghiêm trọng chưa xử lý. Nên?",
+      "options": [
+        "Đánh giá, khắc phục hoặc ngoại lệ hợp lệ có phê duyệt",
+        "Bỏ gate vì deadline",
+        "Tắt scanner",
+        "Ẩn report"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Log xác thực không nên chứa gì?",
+      "options": [
+        "Thời điểm",
+        "Kết quả hành động",
+        "Correlation ID phù hợp",
+        "Password, OTP và access token"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Backup chỉ có giá trị đáng tin khi nào?",
+      "options": [
+        "Khi dung lượng lớn",
+        "Khi lưu chung với production",
+        "Đã thử restore và đối chiếu mục tiêu phục hồi",
+        "Khi tên file đúng"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "RPO là gì?",
+      "options": [
+        "Số dependency",
+        "Mức mất dữ liệu chấp nhận được",
+        "Thời gian mục tiêu phục hồi",
+        "Số lần đăng nhập"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Cookie phiên nên bảo vệ bằng gì?",
+      "options": [
+        "Secure, HttpOnly và SameSite phù hợp",
+        "Chỉ tên khó đoán",
+        "Chỉ frontend validation",
+        "Lưu mật khẩu trong cookie"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Kiểm quyền thuộc tính API cần làm gì?",
+      "options": [
+        "Trả toàn bộ object",
+        "Tin role từ client",
+        "Chỉ ẩn field bằng CSS",
+        "Giới hạn trường được đọc và cập nhật tại server"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "AI đề xuất bỏ authorization backend vì đã ẩn nút frontend. Nên?",
+      "options": [
+        "Chỉ thêm chú thích",
+        "Tắt toàn bộ kiểm tra",
+        "Giữ kiểm quyền server và test âm tính",
+        "Chấp nhận ngay"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Khi token xuất hiện trong log production, cần gì?",
+      "options": [
+        "Gửi token vào nhóm công khai",
+        "Hạn chế quyền log, báo, phối hợp revoke và bảo toàn chứng cứ",
+        "Xóa toàn bộ log ngay",
+        "Chỉ sửa tên token"
+      ],
+      "correctIndex": 1
+    }
+  ]
+}
