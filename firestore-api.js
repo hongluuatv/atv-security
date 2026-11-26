@@ -28,21 +28,25 @@ window.ATV_FIRESTORE=(()=>{
     const get=async r=>(await getDocFromServer(r)).data();
     async function profile(){
       must(validEmail(email)&&user.emailVerified,"Cần email Google công ty đã xác thực.");
-      return runTransaction(db,async tx=>{
+      const token=await user.getIdTokenResult(true);
+      if(token.signInProvider!=="google.com"||token.claims.email_verified!==true||String(token.claims.email||"").toLowerCase()!==email)fail("Phiên Google chưa xác thực đúng email công ty. Đăng nhập lại bằng Google.","permission-denied");
+      let stage="đọc hồ sơ portalUsers/"+email;
+      try{return await runTransaction(db,async tx=>{
+        stage="đọc hồ sơ portalUsers/"+email;
         let p=(await tx.get(userRef)).data();
         if(p?.uid&&p.uid!==uid)fail("Định danh không khớp. Liên hệ quản trị viên.","permission-denied");
         if(email===ADMIN){
-          if(!p||!p.uid||p.role!=="admin"||p.enabled!==true){p={...p,email,uid,name,role:"admin",enabled:true,createdAtMs:p?.createdAtMs||now(),firstLoginAtMs:p?.firstLoginAtMs||now()};tx.set(userRef,p);}
+          if(!p||!p.uid||p.role!=="admin"||p.enabled!==true){p={...p,email,uid,name,role:"admin",enabled:true,createdAtMs:p?.createdAtMs||now(),firstLoginAtMs:p?.firstLoginAtMs||now()};stage="ghi hồ sơ Admin mặc định";tx.set(userRef,p);}
         }else if(!p){
-          const settings=(await tx.get(policyRef)).data();
+          stage="đọc chính sách portalSettings/access";const settings=(await tx.get(policyRef)).data();
           if(settings?.mode==="whitelist")fail("Email chưa được cấp phép.","permission-denied");
-          p={email,uid,name,role:"employee",enabled:true,createdAtMs:now(),firstLoginAtMs:now()};tx.set(userRef,p);
+          p={email,uid,name,role:"employee",enabled:true,createdAtMs:now(),firstLoginAtMs:now()};stage="tạo hồ sơ nhân viên";tx.set(userRef,p);
         }else{
           if(p.enabled!==true)fail("Tài khoản đã bị khóa.","permission-denied");
-          if(!p.uid){p={...p,uid,name,firstLoginAtMs:now()};tx.set(userRef,p);}
+          if(!p.uid){p={...p,uid,name,firstLoginAtMs:now()};stage="gắn UID vào hồ sơ đã cấp phép";tx.set(userRef,p);}
         }
         return {...actor(),role:p.role,enabled:true};
-      });
+      });}catch(err){if(err?.code==="permission-denied"&&/Missing or insufficient permissions/i.test(err.message||""))fail("Firestore từ chối khi "+stage+". Kiểm tra Rules v0.6 đã Publish đúng project atv-security, database (default), và App Check.","permission-denied");throw err;}
     }
     async function listPeriods(){
       const docs=(await getDocsFromServer(query(col("assessmentPeriods"),where("status","==","published"),where("closeAtMs",">",now()),orderBy("closeAtMs"),limit(100)))).docs;
