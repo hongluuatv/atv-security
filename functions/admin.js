@@ -1,7 +1,7 @@
 "use strict";
 const {onCall,HttpsError}=require("firebase-functions/v2/https");
 const {getFirestore}=require("firebase-admin/firestore");
-const {profile,users,policyRef,validEmail,audit}=require("./access");
+const {profile,users,policyRef,validEmail,audit,DEFAULT_ADMIN}=require("./access");
 const {periods,bankRef,idOk,validatePeriod,publicPeriod,freezeBank}=require("./periods");
 const options={region:"asia-southeast1",maxInstances:5,timeoutSeconds:30};
 const db=()=>getFirestore();
@@ -21,6 +21,7 @@ exports.adminSaveUser=secure(async req=>{
   if(!validEmail(email)||!["admin","employee"].includes(role)||typeof enabled!=="boolean")throw new HttpsError("invalid-argument","Email, vai trò hoặc trạng thái không hợp lệ.");
   return db().runTransaction(async tx=>{
     const actor=await profile(req,tx,{admin:true});
+    if(email===DEFAULT_ADMIN)throw new HttpsError("failed-precondition","Không thể khóa hoặc thay vai trò admin mặc định.");
     if(email===actor.email)throw new HttpsError("failed-precondition","Không thể tự đổi vai trò hoặc khóa chính mình.");
     const ref=users().doc(email),before=(await tx.get(ref)).data();
     tx.set(ref,{...before,email,role,enabled,createdAtMs:before?.createdAtMs||Date.now(),updatedAtMs:Date.now()});
