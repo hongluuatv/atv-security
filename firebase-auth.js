@@ -17,6 +17,7 @@ function closePortal() {
   shell.hidden = true;
   screen.hidden = false;
   email.textContent = "";
+  window.ATV_ASSESSMENT.disconnect();
   window.ATV_PORTAL_SESSION.close();
 }
 function allowed(user) {
@@ -82,6 +83,7 @@ async function boot() {
       denied = false;
       email.textContent = user.email;
       try {
+        window.ATV_ASSESSMENT.connect(user, app);
         window.ATV_PORTAL_SESSION.open(user);
         screen.hidden = true;
         shell.hidden = false;
