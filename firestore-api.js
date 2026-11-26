@@ -128,7 +128,24 @@ window.ATV_FIRESTORE=(()=>{
       const x=d.period||{},title=String(x.title||"").trim(),p={title,course:x.course,openAtMs:x.openAtMs,closeAtMs:x.closeAtMs,questionCount:x.questionCount,passPercent:x.passPercent,durationMinutes:x.durationMinutes,maxAttempts:x.maxAttempts};
       must(title&&title.length<=150&&["general","onboarding","technical"].includes(p.course)&&Number.isSafeInteger(p.openAtMs)&&Number.isSafeInteger(p.closeAtMs)&&p.closeAtMs>p.openAtMs&&p.closeAtMs-p.openAtMs<=366*86400000&&Number.isInteger(p.questionCount)&&p.questionCount>=5&&p.questionCount<=50&&Number.isInteger(p.passPercent)&&p.passPercent>=1&&p.passPercent<=100&&Number.isInteger(p.durationMinutes)&&p.durationMinutes>=5&&p.durationMinutes<=1440&&Number.isInteger(p.maxAttempts)&&p.maxAttempts>=0&&p.maxAttempts<=100,"Cấu hình kỳ không hợp lệ.");
       const r=d.id?period(d.id):doc(col("assessmentPeriods"));if(d.id)must(validId(d.id),"Mã kỳ không hợp lệ.");
-      await runTransaction(db,async tx=>{const old=(await tx.get(r)).data();if(d.id&&old?.status!=="draft")fail("Chỉ sửa kỳ nháp.");tx.set(r,{...p,status:"draft",createdAtMs:old?.createdAtMs||now(),createdBy:old?.createdBy||email,updatedAtMs:now()});audit(tx,"period.save",r.id);});return {id:r.id};
+      await runTransaction(db,async tx=>{
+        const old=(await tx.get(r)).data();
+        if(d.id&&!old)fail("Kỳ đánh giá không tồn tại.");
+        if(!old||old.status==="draft"){
+          tx.set(r,{...p,status:"draft",createdAtMs:old?.createdAtMs||now(),createdBy:old?.createdBy||email,updatedAtMs:now()});
+        }else if(old.status==="published"){
+          if(p.course!==old.course)fail("Không đổi khóa sau khi công bố.");
+          const b=(await tx.get(snapshot(r.id))).data();
+          must(Array.isArray(b?.questions)&&b.questions.length>=p.questionCount,"Đề đã chốt không đủ số câu.");
+          if(now()>=old.openAtMs){
+            for(const key of ["openAtMs","questionCount","passPercent","durationMinutes"])if(p[key]!==old[key])fail("Kỳ đã mở: không đổi ngày bắt đầu, số câu, điểm đạt hoặc thời lượng.");
+            if(p.closeAtMs<old.closeAtMs)fail("Chỉ được gia hạn ngày đóng của kỳ đã mở.");
+            if(p.maxAttempts!==old.maxAttempts&&!(old.maxAttempts>0&&(p.maxAttempts===0||p.maxAttempts>=old.maxAttempts)))fail("Chỉ được tăng số lượt hoặc chuyển sang không giới hạn.");
+          }
+          tx.update(r,{...p,updatedAtMs:now()});
+        }else fail("Kỳ đã đóng thủ công không thể sửa. Tạo kỳ mới.");
+        audit(tx,old?.status==="published"?"period.update":"period.save",r.id);
+      });return {id:r.id};
     }
     async function publish(d){must(validId(d.id),"Mã kỳ không hợp lệ.");await runTransaction(db,async tx=>{const r=period(d.id),p=(await tx.get(r)).data();if(p?.status!=="draft"||p.closeAtMs<=now())fail("Chỉ công bố kỳ nháp chưa hết hạn.");const b=versioned((await tx.get(bank(p.course))).data());must(b.questions.length>=p.questionCount,"Ngân hàng chưa đủ câu.");if(b.version.startsWith("DEMO")&&!d.confirmDemo)fail("Cần xác nhận đề DEMO.");tx.set(snapshot(d.id),b);tx.update(r,{status:"published",bankVersion:b.version,publishedAtMs:now(),publishedBy:email});audit(tx,"period.publish",d.id);});return {ok:true};}
     async function close(d){must(validId(d.id),"Mã kỳ không hợp lệ.");await runTransaction(db,async tx=>{const r=period(d.id),p=(await tx.get(r)).data();if(!p||!["draft","published"].includes(p.status))fail("Kỳ không thể đóng.");tx.update(r,{status:"closed",closedAtMs:now(),closedBy:email});audit(tx,"period.close",d.id);});return {ok:true};}
