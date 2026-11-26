@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All exam data is served via authenticated Cloud Functions.
+    // Server Admin SDK bypasses these rules. Never allow client writes to results.
+    match /assessmentBanks/{path=**} { allow read, write: if false; }
+    match /assessmentSessions/{path=**} { allow read, write: if false; }
+    match /assessmentResults/{path=**} { allow read, write: if false; }
+    match /{path=**} { allow read, write: if false; }
+  }
+}
