@@ -55,7 +55,7 @@ window.ATV_FIRESTORE=(()=>{
         return {...actor(),role:p.role,enabled:true};
       });}catch(err){if(err?.code==="permission-denied"&&/Missing or insufficient permissions/i.test(err.message||""))fail("Firestore từ chối khi "+stage+". Kiểm tra Rules v0.6 đã Publish đúng project atv-security, database (default), và App Check.","permission-denied");throw err;}
     }
-    async function listPeriods(){
+    async function listPeriods(data={}){
       // Single-field query: compatible with default Firestore indexes and existing access rules.
       // Paginate before filtering so older expired periods cannot hide newer ones.
       const docs=[];let cursor=null;
@@ -64,7 +64,7 @@ window.ATV_FIRESTORE=(()=>{
         if(cursor)constraints.push(startAfter(cursor));
         constraints.push(limit(100));
         const page=(await getDocsFromServer(query(col("assessmentPeriods"),...constraints))).docs;
-        docs.push(...page.filter(d=>d.data().closeAtMs>now()));
+        docs.push(...page.filter(d=>d.data().closeAtMs>now()&&(!data.course||d.data().course===data.course)));
         if(page.length<100)break;
         cursor=page[page.length-1];
       }
@@ -103,9 +103,18 @@ window.ATV_FIRESTORE=(()=>{
       return await get(attempt(aid));
     }
     async function history(data){
-      let constraints=[orderBy("submittedAtMs","desc")];if(data.cursor){const d=await getDocFromServer(attempt(data.cursor));must(d.exists(),"Trang không tồn tại.");constraints.push(startAfter(d));}constraints.push(limit(26));
-      const docs=(await getDocsFromServer(query(col("assessmentResults",uid,"attempts"),...constraints))).docs,rows=docs.slice(0,25);
-      return {attempts:rows.map(d=>d.data()),nextCursor:docs.length>25?rows[24].id:null};
+      const rows=[];let cursor=null;
+      if(data.course)must(["general","onboarding","technical"].includes(data.course),"Khóa không hợp lệ.");
+      if(data.cursor){cursor=await getDocFromServer(attempt(data.cursor));must(cursor.exists(),"Trang không tồn tại.");}
+      // Filter course locally to retain single-field Firestore ordering (no composite index).
+      for(;;){
+        const constraints=[orderBy("submittedAtMs","desc")];
+        if(cursor)constraints.push(startAfter(cursor));constraints.push(limit(100));
+        const page=(await getDocsFromServer(query(col("assessmentResults",uid,"attempts"),...constraints))).docs;
+        for(const d of page){const v=d.data();if(!data.course||v.course===data.course){rows.push(d);if(rows.length===26)return {attempts:rows.slice(0,25).map(x=>x.data()),nextCursor:rows[24].id};}}
+        if(page.length<100)return {attempts:rows.map(x=>x.data()),nextCursor:null};
+        cursor=page[page.length-1];
+      }
     }
     async function paged(c,field,cursor,n=50){
       const qs=[orderBy(field,field==="createdAtMs"?"desc":"asc")];
