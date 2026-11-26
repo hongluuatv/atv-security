@@ -58,9 +58,12 @@ window.ATV_FIRESTORE=(()=>{
     const ONBOARD="onboarding-always",onboardConfig={course:"onboarding",title:"Đánh giá nhân viên mới",questionCount:15,passPercent:80,durationMinutes:30,maxAttempts:0};
     const completion=()=>ref("onboardingCompletion",uid),onboardSession=()=>ref("onboardingSessions",uid);
     async function onboardingStatus(){
+      let stage="kiểm tra trạng thái hoàn thành";
+      try{
       let completed=await get(completion());
       if(!completed){
         // Migrate a previous pass from any historical onboarding period, not just the first page.
+        stage="kiểm tra lịch sử đánh giá nhân viên mới";
         let cursor=null,proof=null;
         for(;;){
           const qs=[where("course","==","onboarding")];if(cursor)qs.push(startAfter(cursor));qs.push(limit(100));
@@ -68,12 +71,15 @@ window.ATV_FIRESTORE=(()=>{
           proof=page.find(d=>d.data().passed===true);if(proof||page.length<100)break;cursor=page[page.length-1];
         }
         if(proof){
+          stage="đồng bộ kết quả đạt trước đây";
           await runTransaction(db,async tx=>{const old=await tx.get(completion());if(!old.exists())tx.set(completion(),{uid,attemptId:proof.id,completedAt:stamp()});});
           completed=await get(completion());
         }
       }
-      if(completed){const r=await get(attempt(completed.attemptId));return {completed:true,attempt:r||null};}
+      if(completed){stage="đọc kết quả đã đạt";const r=await get(attempt(completed.attemptId));return {completed:true,attempt:r||null};}
+      stage="đọc ngân hàng câu hỏi nhân viên mới";
       const b=await get(bank("onboarding"));return {completed:false,ready:Array.isArray(b?.questions)&&b.questions.length>=15,config:onboardConfig};
+      }catch(err){if(err?.code==="permission-denied")fail("Firestore từ chối khi "+stage+". Quản trị viên cần Publish Security Rules v0.6.10 đã sửa trên project atv-security, database (default).","permission-denied");throw err;}
     }
     function onboardPublic(s){
       return {id:s.id,periodId:ONBOARD,periodTitle:onboardConfig.title,course:"onboarding",version:s.bank.version,passPercent:80,startedAtMs:s.startedAt.toMillis(),expiresAtMs:s.startedAt.toMillis()+30*60000,questions:randomized(s.bank,s.id,15).map(({correctId,...q})=>q)};
