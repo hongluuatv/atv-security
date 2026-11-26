@@ -1,0 +1,245 @@
+{
+  "version": "DEMO-general-2026.1",
+  "questions": [
+    {
+      "prompt": "Phát hiện yêu cầu MFA khi không đăng nhập, cần làm gì?",
+      "options": [
+        "Từ chối và báo IT",
+        "Duyệt để hết thông báo",
+        "Gửi OTP cho người hỗ trợ",
+        "Chờ đến ngày mai"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Bản vẽ chưa có nhãn phân loại nên được xử lý thế nào?",
+      "options": [
+        "Đăng lên nhóm công khai",
+        "Chia sẻ bằng link ai cũng xem",
+        "Lưu vào Drive cá nhân",
+        "Hạn chế quyền và hỏi chủ sở hữu"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Email yêu cầu chuyển tiền gấp và đổi tài khoản nhận. Bước phù hợp?",
+      "options": [
+        "Trả lời email để xác minh",
+        "Chuyển tiền trước",
+        "Xác minh bằng kênh độc lập đã biết",
+        "Chỉ nhìn tên hiển thị"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Khi rời bàn làm việc, thao tác nào phù hợp?",
+      "options": [
+        "Tắt MFA",
+        "Khóa phiên và bảo quản tài liệu",
+        "Chỉ tắt màn hình",
+        "Để người khác dùng máy"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Có cần báo khi nghi gửi nhầm file nhưng chưa chắc người nhận đã đọc?",
+      "options": [
+        "Báo ngay dấu hiệu và hạn chế quyền nếu được phép",
+        "Chờ xác nhận thiệt hại",
+        "Xóa chứng cứ",
+        "Không báo nếu thu hồi được"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Công cụ dịch công khai có thể nhận bản vẽ mật khi nào?",
+      "options": [
+        "Khi xóa tên khách hàng",
+        "Khi dùng chế độ riêng tư",
+        "Khi không đăng nhập",
+        "Chỉ khi công cụ và phạm vi dữ liệu đã được phê duyệt"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Đồng nghiệp xin mượn tài khoản dự án. Bạn làm gì?",
+      "options": [
+        "Gửi mật khẩu qua chat",
+        "Dùng chung tài khoản",
+        "Đề nghị xin quyền cá nhân",
+        "Cho mượn phiên một giờ"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Mất toàn vẹn dữ liệu là tình huống nào?",
+      "options": [
+        "Máy khóa màn hình",
+        "Thông số thiết kế bị sửa trái phép",
+        "File không đọc được do mất mạng",
+        "Người ngoài đọc file"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Dữ liệu chỉ nên được gửi cho ai?",
+      "options": [
+        "Người có quyền và nhu cầu công việc",
+        "Tất cả nhân viên",
+        "Mọi người biết link",
+        "Bất kỳ người quen nào"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Phát hiện USB lạ, lựa chọn đúng là gì?",
+      "options": [
+        "Cắm thử vào máy công việc",
+        "Cắm máy offline rồi xem file",
+        "Gửi cho đồng nghiệp thử",
+        "Chuyển IT kiểm tra theo quy trình"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Mật khẩu tài khoản công việc nên thế nào?",
+      "options": [
+        "Chia sẻ cho nhóm",
+        "Lưu ở file công khai",
+        "Dài, duy nhất, quản lý bằng công cụ được duyệt",
+        "Dùng chung với mạng xã hội"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Nhận link đăng nhập lạ từ người tự xưng là IT. Bạn nên?",
+      "options": [
+        "Chỉ cần thấy logo là tin",
+        "Không mở, xác minh qua đầu mối đã biết",
+        "Nhập mật khẩu để thử",
+        "Gửi OTP"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "NDA có cấp quyền truy cập toàn bộ tài liệu không?",
+      "options": [
+        "Không, vẫn cần quyền theo nhiệm vụ",
+        "Có, mọi tài liệu",
+        "Có, nếu làm cùng công ty",
+        "Có, sau một tháng"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Đã chuyển dự án, dữ liệu dự án cũ cần làm gì?",
+      "options": [
+        "Giữ để dùng cho khách khác",
+        "Tải về máy cá nhân",
+        "Chia sẻ vào kho công khai",
+        "Bàn giao, thu hồi quyền và xử lý theo hướng dẫn"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Nếu máy có dấu hiệu mã độc, cần ưu tiên?",
+      "options": [
+        "Tự xóa toàn bộ log",
+        "Tắt công cụ chống mã độc",
+        "Dừng thao tác, cô lập mạng khi an toàn và báo IT",
+        "Tiếp tục gửi file"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Báo cáo sự cố cần chứa gì?",
+      "options": [
+        "Toàn bộ dữ liệu mật",
+        "Thời điểm, hệ thống, sự kiện, phạm vi nghi ngờ, hành động",
+        "Mật khẩu và OTP",
+        "Thông tin suy đoán như sự thật"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Ai có quyền thông báo sự cố cho khách hàng?",
+      "options": [
+        "Người được tổ chức ủy quyền",
+        "Bất cứ người phát hiện nào",
+        "Mọi người trong chat",
+        "Người ngoài dự án"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Bỏ tên khách hàng khỏi file có làm file tự động công khai?",
+      "options": [
+        "Có, luôn luôn",
+        "Có, nếu file PDF",
+        "Có, nếu đổi tên file",
+        "Không, cần xác minh quyền và độ nhạy cảm"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Dữ liệu cá nhân nên xử lý ra sao?",
+      "options": [
+        "Lưu không giới hạn",
+        "Chia sẻ theo tiện lợi",
+        "Theo mục đích hợp lệ, tối thiểu và quyền phù hợp",
+        "Thu thập tất cả để dự phòng"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Người dùng có thể tự bỏ qua bản vá nếu máy vẫn chạy tốt?",
+      "options": [
+        "Có, nếu dùng MFA",
+        "Không, thực hiện quy trình cập nhật được duyệt",
+        "Có, nếu không gặp lỗi",
+        "Có, nếu dùng VPN"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "prompt": "Trước khi chia sẻ tài liệu trên Drive cần kiểm tra gì?",
+      "options": [
+        "Người nhận, quyền, nội dung và kho được phép",
+        "Chỉ kiểm tra tên file",
+        "Chỉ xem tốc độ mạng",
+        "Bật quyền mọi người có link"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "prompt": "Khi dùng nội dung do AI tạo, bước nào cần thiết?",
+      "options": [
+        "Sao chép trực tiếp",
+        "Tin tuyệt đối vì AI tự tin",
+        "Bỏ qua review nếu ngắn",
+        "Kiểm chứng độ đúng, bảo mật và quyền sử dụng"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "prompt": "Mất laptop công việc cần làm gì?",
+      "options": [
+        "Đăng mật khẩu lên nhóm",
+        "Không báo nếu máy có khóa",
+        "Báo ngay đầu mối và cung cấp thông tin sự kiện",
+        "Chờ một tuần tìm lại"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "prompt": "Mục tiêu sẵn sàng trong CIA nghĩa là?",
+      "options": [
+        "Mọi file đều công khai",
+        "Người có quyền dùng được hệ thống khi cần",
+        "Mọi người đều được xem",
+        "Không ai sửa được file"
+      ],
+      "correctIndex": 1
+    }
+  ]
+}
