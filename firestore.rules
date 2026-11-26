@@ -14,16 +14,19 @@ service cloud.firestore {
     function registered() {
       return company() && exists(userPath(email()))
         && get(userPath(email())).data.get('uid','') == request.auth.uid
-        && get(userPath(email())).data.enabled == true;
+        && get(userPath(email())).data.enabled == true
+        && !('deletedAt' in get(userPath(email())).data);
     }
     function admin() { return registered() && get(userPath(email())).data.role == 'admin'; }
     function own(uid) { return registered() && request.auth.uid == uid; }
     function userShape(e,d) {
       return e.matches('^[^/@]+@arrow-tech[.]vn$') && e.size() <= 254
-        && d.keys().hasOnly(['email','role','enabled','uid','name','createdAtMs','updatedAtMs','firstLoginAtMs'])
+        && d.keys().hasOnly(['email','role','enabled','uid','name','createdAtMs','updatedAtMs','firstLoginAtMs','deletedAt','deletedBy'])
         && d.email == e && d.role in ['admin','employee'] && d.enabled is bool
         && (!('uid' in d) || (d.uid is string && d.uid.size() <= 128))
-        && (!('name' in d) || (d.name is string && d.name.size() <= 120));
+        && (!('name' in d) || (d.name is string && d.name.size() <= 120))
+        && (('deletedAt' in d) == ('deletedBy' in d))
+        && (!('deletedAt' in d) || (d.deletedAt is timestamp && d.deletedBy is string && d.enabled == false));
     }
     function selfCreate(e,d) {
       return company() && e == email() && d.uid == request.auth.uid && d.enabled == true
@@ -42,11 +45,20 @@ service cloud.firestore {
     match /portalUsers/{e} {
       allow get: if company() && (e == email() || admin());
       allow list: if admin() && request.query.limit <= 51;
-      allow create: if userShape(e,request.resource.data) && (selfCreate(e,request.resource.data)
+      allow create: if userShape(e,request.resource.data) && !('deletedAt' in request.resource.data) && (selfCreate(e,request.resource.data)
         || admin() && e != reserved() && e != email() && !('uid' in request.resource.data));
-      allow update: if userShape(e,request.resource.data) && (selfBind(e,request.resource.data)
-        || admin() && e != reserved() && e != email()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','enabled','updatedAtMs']));
+      allow update: if userShape(e,request.resource.data) && (
+        !('deletedAt' in resource.data) && !('deletedAt' in request.resource.data) && selfBind(e,request.resource.data)
+        || admin() && e != reserved() && e != email() && (
+          !('deletedAt' in resource.data) && !('deletedAt' in request.resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','enabled','updatedAtMs'])
+          || !('deletedAt' in resource.data) && 'deletedAt' in request.resource.data
+            && request.resource.data.deletedAt == request.time && request.resource.data.deletedBy == email()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enabled','deletedAt','deletedBy','updatedAtMs'])
+          || 'deletedAt' in resource.data && !('deletedAt' in request.resource.data)
+            && request.resource.data.enabled == false
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt','deletedBy','updatedAtMs'])
+        ));
       allow delete: if false;
     }
     match /portalSettings/access {
