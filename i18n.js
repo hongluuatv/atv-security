@@ -23,5 +23,5 @@ window.ATV_I18N=(()=>{
   function setLanguage(next){window.ATV_GLOSSARY?.restore();lang=next==="en"?"en":"vi";try{localStorage.setItem("atv-language",lang);}catch{}updateControls();apply();window.ATV_GLOSSARY?.decorate();if(window.ATV_GLOSSARY?.close)window.ATV_GLOSSARY.close();}
   function init(){updateControls();apply();document.addEventListener("click",e=>{const b=e.target.closest("[data-atv-lang]");if(b)setLanguage(b.dataset.atvLang);});const observer=new MutationObserver(records=>{for(const m of records){if(m.type==="characterData")apply(m.target);else if(m.type==="attributes")apply(m.target);else for(const n of m.addedNodes)apply(n);}});observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["placeholder","aria-label","title"]});}
   const confirmText=message=>window.confirm(tr(message));
-  return {tr,add,init,setLanguage,confirm:confirmText,get language(){return lang;}};
+  return {tr,add,apply,init,setLanguage,confirm:confirmText,get language(){return lang;}};
 })();
