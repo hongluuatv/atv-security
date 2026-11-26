@@ -17,6 +17,7 @@ function closePortal() {
   shell.hidden = true;
   screen.hidden = false;
   email.textContent = "";
+  window.ATV_MANAGEMENT.disconnect();
   window.ATV_ASSESSMENT.disconnect();
   window.ATV_PORTAL_SESSION.close();
 }
@@ -84,12 +85,20 @@ async function boot() {
       email.textContent = user.email;
       try {
         window.ATV_ASSESSMENT.connect(user, app);
+        message("Đang kiểm tra quyền tài khoản…");
+        const profile = await window.ATV_ASSESSMENT.call("getPortalProfile");
+        if (auth.currentUser?.uid !== user.uid) return;
+        if (profile.uid !== user.uid || profile.enabled !== true) throw Error("Invalid profile");
+        window.ATV_MANAGEMENT.connect(profile);
         window.ATV_PORTAL_SESSION.open(user);
+        email.textContent = user.email + (profile.role === "admin" ? " · Admin" : "");
         screen.hidden = true;
         shell.hidden = false;
-      } catch {
+      } catch (err) {
+        if (auth.currentUser?.uid !== user.uid) return;
+        denied = true;
         closePortal();
-        message("Không thể khởi tạo nội dung học tập. Liên hệ quản trị viên.", true);
+        message(err?.code === "functions/permission-denied" ? err.message : "Không thể xác minh quyền tài khoản. Quản trị viên cần triển khai Cloud Functions và Firestore (v0.5).", true);
         try { await signOut(auth); } catch {}
       }
     }, () => { closePortal(); message("Lỗi kiểm tra phiên xác thực.", true); login.disabled = true; });
