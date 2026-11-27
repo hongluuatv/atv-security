@@ -47,18 +47,27 @@ service cloud.firestore {
       allow list: if admin() && request.query.limit <= 51;
       allow create: if userShape(e,request.resource.data) && !('deletedAt' in request.resource.data) && (selfCreate(e,request.resource.data)
         || admin() && e != reserved() && e != email() && !('uid' in request.resource.data));
-      allow update: if userShape(e,request.resource.data) && (
-        !('deletedAt' in resource.data) && !('deletedAt' in request.resource.data) && selfBind(e,request.resource.data)
-        || admin() && e != reserved() && e != email() && (
-          !('deletedAt' in resource.data) && !('deletedAt' in request.resource.data)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','enabled','updatedAtMs'])
-          || !('deletedAt' in resource.data) && 'deletedAt' in request.resource.data
-            && request.resource.data.deletedAt == request.time && request.resource.data.deletedBy == email()
+      // Ordinary profile edits still require the full profile schema.
+      allow update: if userShape(e,request.resource.data)
+        && !('deletedAt' in resource.data) && !('deletedAt' in request.resource.data)
+        && (selfBind(e,request.resource.data)
+          || admin() && e != reserved() && e != email()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','enabled','updatedAtMs']));
+      // Lifecycle changes preserve every existing identity/profile field, including legacy fields.
+      // This avoids rejecting old profiles solely because of unrelated historical metadata.
+      allow update: if admin() && e != reserved() && e != email()
+        && e.matches('^[^/@]+@arrow-tech[.]vn$')
+        && request.resource.data.enabled == false
+        && request.resource.data.updatedAtMs is int
+        && (
+          !('deletedAt' in resource.data) && !('deletedBy' in resource.data)
+            && request.resource.data.deletedAt == request.time
+            && request.resource.data.deletedBy == email()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enabled','deletedAt','deletedBy','updatedAtMs'])
-          || 'deletedAt' in resource.data && !('deletedAt' in request.resource.data)
-            && request.resource.data.enabled == false
+          || 'deletedAt' in resource.data && 'deletedBy' in resource.data
+            && !('deletedAt' in request.resource.data) && !('deletedBy' in request.resource.data)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt','deletedBy','updatedAtMs'])
-        ));
+        );
       allow delete: if false;
     }
     match /portalSettings/access {
